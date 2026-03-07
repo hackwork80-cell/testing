@@ -1,0 +1,378 @@
+/* ============================================================
+   style.css — Global design tokens + Login page
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ── Design Tokens ─────────────────────────────────────────── */
+:root {
+  --bg-deep: #0d0d0f;
+  --bg-surface: #141418;
+  --bg-card: #1c1c22;
+  --bg-card-hover: #22222a;
+
+  --accent: #c8a86b;
+  --accent-dim: #9e7d47;
+  --accent-glow: rgba(200, 168, 107, 0.18);
+
+  --green: #2ecc71;
+  --green-dim: rgba(46, 204, 113, 0.15);
+  --red: #e74c3c;
+  --red-dim: rgba(231, 76, 60, 0.15);
+
+  --text-primary: #f0ece4;
+  --text-secondary: #a09884;
+  --text-muted: #5a5650;
+
+  --border: rgba(200, 168, 107, 0.12);
+  --border-hover: rgba(200, 168, 107, 0.35);
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 30px rgba(200, 168, 107, 0.15);
+
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Playfair Display', serif;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--text-primary);
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border-radius: 99px;
+}
+
+/* ── Utility ───────────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ── Loader Overlay ────────────────────────────────────────── */
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(13, 13, 15, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+.loader-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.loader-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Toast Notification ────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 1000;
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  white-space: normal;
+  text-align: center;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.success {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.toast.error {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ============================================================
+   LOGIN PAGE
+   ============================================================ */
+.login-page {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* dynamic viewport height for mobile */
+}
+
+/* Left decorative panel — hidden on mobile */
+.login-art {
+  flex: 1;
+  background:
+    linear-gradient(135deg, rgba(13, 13, 15, 0.7) 0%, rgba(13, 13, 15, 0.3) 100%),
+    url('../assets/hero-bg.jpg') center/cover no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(13, 13, 15, 0.95) 0%, transparent 55%);
+}
+
+.login-art-content {
+  position: relative;
+  z-index: 1;
+}
+
+.login-art .brand-mark {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 18px;
+  display: block;
+}
+
+.login-art h1 {
+  font-size: clamp(2.4rem, 4vw, 3.5rem);
+  line-height: 1.1;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.login-art p {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 380px;
+}
+
+/* Right form panel */
+.login-form-panel {
+  width: 440px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 56px 48px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+}
+
+.login-form-panel .panel-heading {
+  margin-bottom: 40px;
+}
+
+.login-form-panel .panel-heading h2 {
+  font-size: 1.9rem;
+  margin-bottom: 8px;
+}
+
+.login-form-panel .panel-heading p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Form elements */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  /* 16px prevents iOS zoom */
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-group input::placeholder {
+  color: var(--text-muted);
+}
+
+.form-group input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #0d0d0f;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+  margin-top: 8px;
+  /* Better tap targets on mobile */
+  min-height: 52px;
+  touch-action: manipulation;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(200, 168, 107, 0.35);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.form-error {
+  color: var(--red);
+  font-size: 0.85rem;
+  margin-top: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.admin-link {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.admin-link a {
+  color: var(--accent-dim);
+}
+
+.admin-link a:hover {
+  color: var(--accent);
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .login-art {
+    display: none;
+  }
+
+  .login-form-panel {
+    width: 100%;
+    padding: 48px 24px;
+    justify-content: flex-start;
+    padding-top: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-form-panel {
+    padding: 40px 20px;
+  }
+
+  .login-form-panel .panel-heading h2 {
+    font-size: 1.6rem;
+  }
+}

@@ -1,0 +1,694 @@
+/* ============================================================
+   admin.css — Admin Panel (mobile-first)
+   ============================================================ */
+
+/* Ensure the native hidden attribute always wins over CSS display rules */
+[hidden] {
+    display: none !important;
+}
+
+/* ── Admin Auth Gate ────────────────────────────────────────── */
+.admin-auth-gate {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 36px 24px;
+    box-shadow: var(--shadow-card);
+    text-align: center;
+}
+
+.auth-card .lock-icon {
+    font-size: 2.5rem;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.auth-card h2 {
+    font-size: 1.5rem;
+    margin-bottom: 6px;
+}
+
+.auth-card p {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+}
+
+/* ── Admin Layout ───────────────────────────────────────────── */
+.admin-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 60px;
+    background: rgba(13, 13, 15, 0.92);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    gap: 10px;
+}
+
+.admin-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.admin-badge {
+    background: var(--accent);
+    color: #0d0d0f;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.admin-nav-brand h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-nav-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn-outline {
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+
+.btn-outline:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-init {
+    padding: 8px 14px;
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background var(--transition);
+}
+
+.btn-init:hover {
+    background: rgba(200, 168, 107, 0.25);
+}
+
+
+
+/* ── Admin Content ──────────────────────────────────────────── */
+.admin-content {
+    flex: 1;
+    padding: 20px 16px 40px;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* ── Date Selector ───────────────────────────────────────────── */
+.admin-date-selector-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.admin-date-selector {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    max-width: 100%;
+    scrollbar-width: none;
+}
+
+.admin-date-selector::-webkit-scrollbar {
+    display: none;
+}
+
+.date-pill {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 99px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.date-pill:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.date-pill.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Stats Row ──────────────────────────────────────────────── */
+.admin-stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.admin-stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+
+.admin-stat-card .stat-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.admin-stat-card .stat-lbl {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.admin-stat-card.green-accent {
+    border-top: 2px solid var(--green);
+}
+
+.admin-stat-card.red-accent {
+    border-top: 2px solid var(--red);
+}
+
+.admin-stat-card.gold-accent {
+    border-top: 2px solid var(--accent);
+}
+
+/* ── Shift Tabs ─────────────────────────────────────────────── */
+.shift-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.shift-tab {
+    padding: 11px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: color var(--transition), border-color var(--transition);
+    margin-bottom: -1px;
+    white-space: nowrap;
+}
+
+.shift-tab:hover {
+    color: var(--text-primary);
+}
+
+.shift-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* ── Admin Tables Grid ──────────────────────────────────────── */
+.admin-tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+}
+
+.admin-table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.admin-table-card.occupied {
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.admin-table-card.available {
+    border-color: rgba(46, 204, 113, 0.2);
+}
+
+.admin-table-card:hover {
+    box-shadow: var(--shadow-card);
+}
+
+.admin-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.admin-table-id {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.status-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 99px;
+}
+
+.status-badge.available {
+    background: var(--green-dim);
+    color: var(--green);
+}
+
+.status-badge.occupied {
+    background: var(--red-dim);
+    color: var(--red);
+}
+
+.admin-card-guest {
+    margin-bottom: 10px;
+}
+
+.guest-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.guest-contact {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.guest-slot {
+    font-size: 0.72rem;
+    color: var(--accent);
+    margin-top: 4px;
+    opacity: 0.9;
+}
+
+.empty-seat {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.btn-clear {
+    width: 100%;
+    padding: 8px;
+    background: var(--red-dim);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--red);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 38px;
+    touch-action: manipulation;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.btn-clear:hover {
+    background: rgba(231, 76, 60, 0.25);
+    border-color: var(--red);
+}
+
+.btn-wa-confirm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #25d366;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-wa-confirm:hover {
+    background-color: #1ebd5a;
+    transform: translateY(-1px);
+}
+
+.btn-wa-confirm:active {
+    transform: translateY(0);
+}
+
+/* ── Bookings Table List ────────────────────────────────────── */
+.bookings-section {
+    margin-top: 32px;
+}
+
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.section-heading h2 {
+    font-size: 1.2rem;
+}
+
+.bookings-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+}
+
+.bookings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+    min-width: 500px;
+    /* ensures horizontal scroll kicks in before breaking layout */
+}
+
+.bookings-table th {
+    text-align: left;
+    padding: 11px 14px;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.bookings-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.bookings-table tr:last-child td {
+    border-bottom: none;
+}
+
+.bookings-table tr:hover td {
+    background: var(--bg-card-hover);
+}
+
+.bookings-table td.name-cell {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.bookings-table td.table-cell {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem;
+    color: var(--accent);
+}
+
+.bookings-table td.date-cell {
+    color: var(--text-primary);
+    font-size: 0.82rem;
+}
+
+/* ── Notification Toast ────────────────────────────────────────── */
+.notification-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+    /* Let clicks pass through the container */
+}
+
+.booking-alert {
+    background: var(--bg-surface);
+    border: 1px solid rgba(200, 168, 107, 0.4);
+    border-radius: var(--radius-md);
+    padding: 16px 40px 16px 20px;
+    display: flex;
+    gap: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(200, 168, 107, 0.15);
+    pointer-events: auto;
+    /* Re-enable clicks on the alert itself */
+    animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    position: relative;
+    max-width: 380px;
+    color: var(--text-primary);
+}
+
+.booking-alert.fade-out {
+    animation: fadeOutRight 0.3s ease forwards;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-content h4 {
+    margin: 0 0 4px 0;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    font-family: 'Playfair Display', serif;
+}
+
+.alert-content p {
+    margin: 0 0 6px 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+}
+
+.alert-meta {
+    font-size: 0.82rem;
+    color: var(--accent);
+    margin: 0 !important;
+}
+
+.alert-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.4rem;
+    cursor: pointer;
+    position: absolute;
+    top: 6px;
+    right: 12px;
+    transition: color 0.2s;
+    line-height: 1;
+    padding: 4px;
+}
+
+.alert-close:hover {
+    color: var(--text-primary);
+}
+
+@media (max-width: 600px) {
+    .notification-container {
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+    }
+
+    .booking-alert {
+        max-width: none;
+        width: 100%;
+        animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .booking-alert.fade-out {
+        animation: fadeOutDown 0.3s ease forwards;
+    }
+
+    @keyframes slideInUp {
+        from {
+            transform: translateY(120%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadeOutDown {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        to {
+            transform: translateY(120%);
+            opacity: 0;
+        }
+    }
+}
+
+/* ── Tablet & Desktop ───────────────────────────────────────── */
+@media (min-width: 600px) {
+    .admin-top-nav {
+        padding: 0 32px;
+        height: 66px;
+    }
+
+    .admin-nav-brand h1 {
+        font-size: 1.15rem;
+    }
+
+    .btn-outline,
+    .btn-init {
+        font-size: 0.85rem;
+        padding: 9px 18px;
+    }
+
+    .admin-nav-actions {
+        gap: 12px;
+    }
+
+    .admin-content {
+        padding: 32px 32px 48px;
+    }
+
+    .admin-stats-row {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 36px;
+    }
+
+    .admin-stat-card .stat-val {
+        font-size: 2.2rem;
+    }
+
+    .admin-tables-grid {
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap: 16px;
+    }
+
+    .admin-table-id {
+        font-size: 1.25rem;
+    }
+
+    .bookings-table {
+        font-size: 0.88rem;
+        min-width: auto;
+    }
+
+    .bookings-table th {
+        padding: 12px 16px;
+    }
+
+    .bookings-table td {
+        padding: 14px 16px;
+    }
+
+    .auth-card {
+        padding: 48px 36px;
+    }
+}

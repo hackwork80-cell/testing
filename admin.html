@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Panel — Foothills Retreat</title>
+    <meta name="description" content="Staff admin panel for managing restaurant table reservations." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
+</head>
+
+<body>
+
+    <!-- Loader -->
+    <div class="loader-overlay" id="loader" role="status" aria-label="Loading">
+        <div class="loader-spinner"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+    <!-- ══════════════════════════════════════════════════════════
+       AUTH GATE — shown until correct password entered
+  ══════════════════════════════════════════════════════════ -->
+    <div id="auth-gate" class="admin-auth-gate">
+        <div class="auth-card">
+            <span class="lock-icon" aria-hidden="true">🔐</span>
+            <h2>Staff Access</h2>
+            <p>Enter the admin password to view the dashboard.</p>
+            <form id="admin-auth-form" novalidate>
+                <div class="form-group">
+                    <label for="admin-password" class="visually-hidden">Admin Password</label>
+                    <input type="password" id="admin-password" placeholder="Admin password"
+                        autocomplete="current-password" required />
+                </div>
+                <button type="submit" class="btn-primary">Unlock Dashboard</button>
+                <p id="auth-error" class="form-error" hidden></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+       ADMIN APP — hidden until authenticated
+  ══════════════════════════════════════════════════════════ -->
+    <div id="admin-app" class="admin-page" hidden>
+
+        <!-- Top nav -->
+        <nav class="admin-top-nav" aria-label="Admin navigation">
+            <div class="admin-nav-brand">
+                <span class="admin-badge">ADMIN</span>
+                <h1>Foothills Retreat</h1>
+            </div>
+            <div class="admin-nav-actions">
+                <button class="btn-init" id="btn-init-sheets" title="Seed Bookings sheet with blank rows (run once)">
+                    ⚙ Initialise Sheets
+                </button>
+                <button class="btn-outline" id="btn-admin-logout">
+                    ← Exit
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="admin-content">
+
+            <!-- Date Selector -->
+            <div class="admin-date-selector-wrap" role="group" aria-label="Select date to manage">
+                <div class="admin-date-selector" id="admin-date-selector">
+                    <!-- Injected by admin.js -->
+                </div>
+            </div>
+
+            <!-- Stats row -->
+            <div class="admin-stats-row" aria-label="Overview statistics">
+                <div class="admin-stat-card gold-accent">
+                    <div class="stat-val" id="stat-lunch-occ">—</div>
+                    <div class="stat-lbl">☀️ Lunch Booked</div>
+                </div>
+                <div class="admin-stat-card gold-accent">
+                    <div class="stat-val" id="stat-dinner-occ">—</div>
+                    <div class="stat-lbl">🌙 Dinner Booked</div>
+                </div>
+                <div class="admin-stat-card red-accent">
+                    <div class="stat-val" id="stat-total-occ">—</div>
+                    <div class="stat-lbl">Total Occupied</div>
+                </div>
+                <div class="admin-stat-card green-accent">
+                    <div class="stat-val" id="stat-free">—</div>
+                    <div class="stat-lbl">Free Tables</div>
+                </div>
+            </div>
+
+            <!-- Shift tabs -->
+            <div class="shift-tabs" role="tablist" aria-label="Select shift to manage">
+                <button class="shift-tab active" data-shift="Lunch" role="tab" aria-selected="true">
+                    ☀️ Lunch Tokens
+                </button>
+                <button class="shift-tab" data-shift="Dinner" role="tab" aria-selected="false">
+                    🌙 Dinner Tokens
+                </button>
+            </div>
+
+            <!-- Admin table cards grid -->
+            <section aria-label="Token management">
+                <div class="admin-tables-grid" id="admin-tables-grid">
+                    <!-- Injected by admin.js -->
+                </div>
+            </section>
+
+            <!-- All bookings list -->
+            <section class="bookings-section">
+                <div class="section-heading">
+                    <h2>All Active Bookings</h2>
+                </div>
+                <div class="bookings-table-wrap">
+                    <table class="bookings-table" aria-label="All active reservations">
+                        <thead>
+                            <tr>
+                                <th>Guest Name</th>
+                                <th>Contact</th>
+                                <th>Date</th>
+                                <th>Token</th>
+                                <th>Shift</th>
+                                <th>Time Slot</th>
+                                <th>Guests</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookings-tbody">
+                            <!-- Injected by admin.js -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div><!-- /admin-app -->
+
+    <!-- Audio element for notifications -->
+    <audio id="notification-sound" preload="auto">
+        <!-- Short, polite chime commonly used for web notifications -->
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Container for incoming booking alerts -->
+    <div id="notification-container" class="notification-container" aria-live="polite"></div>
+
+    <script src="js/api.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+
+</html>

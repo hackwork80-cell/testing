@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0d0f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Reserve Your Table — Foothills Retreat</title>
+    <meta name="description" content="Select your shift and choose an available table to complete your reservation." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
+</head>
+
+<body class="dashboard-page">
+
+    <!-- Loader -->
+    <div class="loader-overlay" id="loader" role="status" aria-label="Loading">
+        <div class="loader-spinner"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+    <!-- ── Top Navigation ── -->
+    <nav class="top-nav" aria-label="Main navigation">
+        <span class="nav-brand">🍽 Foothills Retreat</span>
+        <div class="nav-user">
+            <span>Hello, <strong id="nav-user-name">Guest</strong></span>
+            <button class="btn-download-nav" id="btn-download-nav" aria-label="Download Receipt" style="display: none;">
+                📥 Receipt
+            </button>
+            <button class="btn-cancel-nav" id="btn-cancel-nav" aria-label="Cancel your booking">
+                ✕ Cancel Booking
+            </button>
+            <button class="btn-logout" id="btn-logout" aria-label="Log out">Log out</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- ── Page header ── -->
+        <header class="page-header">
+            <p class="subtitle">✦ Reserve a Table ✦</p>
+            <h1>Choose Your Shift</h1>
+            <p>Select a shift, click tables to select them, then confirm your booking.</p>
+        </header>
+
+        <!-- ── Date Selector ── -->
+        <div class="date-selector-wrap" role="group" aria-label="Select booking date">
+            <div class="date-selector" id="date-selector">
+                <!-- Injected by dashboard.js -->
+            </div>
+        </div>
+
+        <!-- ── Shift toggle ── -->
+        <div class="shift-toggle-wrap" role="radiogroup" aria-label="Shift selection">
+            <div class="shift-toggle">
+                <button class="shift-btn active" data-shift="Lunch" role="radio" aria-checked="true" id="btn-lunch">
+                    <span class="shift-icon">☀️</span>Lunch
+                    <span class="shift-count">10</span>
+                </button>
+                <button class="shift-btn" data-shift="Dinner" role="radio" aria-checked="false" id="btn-dinner">
+                    <span class="shift-icon">🌙</span>Dinner
+                    <span class="shift-count">15</span>
+                </button>
+            </div>
+        </div>
+
+
+        <!-- ── Stats bar ── -->
+        <div class="stats-bar" aria-live="polite" aria-label="Table availability summary">
+            <div class="stat-item">
+                <span class="stat-dot green" aria-hidden="true"></span>
+                Available: <strong id="count-available">—</strong>
+            </div>
+            <div class="stat-item">
+                <span class="stat-dot red" aria-hidden="true"></span>
+                Occupied: <strong id="count-occupied">—</strong>
+            </div>
+        </div>
+
+        <!-- ── Tables section ── -->
+        <section class="tables-section" aria-label="Table map">
+            <p class="section-label" aria-hidden="true">— Table Map — click to select —</p>
+            <div class="tables-grid" id="tables-grid" role="list" aria-label="Available tables">
+                <!-- Injected by dashboard.js -->
+            </div>
+        </section>
+    </main>
+
+    <!-- ── Sticky Booking Bar ── -->
+    <div id="book-bar" class="book-bar" role="region" aria-label="Booking selection bar">
+        <span class="book-bar-hint">✓ Tables selected. Choose your time and party size.</span>
+        <button id="btn-open-modal" class="btn-primary book-bar-btn">
+            <span id="book-bar-count">Book 0 Tables →</span>
+        </button>
+    </div>
+
+    <!-- ── Booking Modal ── -->
+    <div id="booking-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-card">
+            <h2 id="modal-title" class="modal-title">📅 Confirm Booking</h2>
+            <p class="modal-subtitle">
+                <span id="modal-table-count">1</span> table(s) · <span id="modal-shift-label">Lunch</span> · 📅 <span
+                    id="modal-date-label">Today</span>
+            </p>
+
+            <div class="modal-field">
+                <label for="modal-slot" class="modal-label">⏰ Select Time Slot</label>
+                <select id="modal-slot" class="modal-select"></select>
+            </div>
+
+            <div class="modal-field">
+                <label for="modal-people" class="modal-label">👥 Number of Guests <span class="modal-hint">(max
+                        20)</span></label>
+                <input type="number" id="modal-people" class="modal-input" min="1" max="20" placeholder="e.g. 4"
+                    autocomplete="off" />
+            </div>
+
+
+            <div class="modal-field">
+                <label for="modal-whatsapp" class="modal-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 32 32" fill="#25d366"
+                        style="vertical-align:middle;margin-right:4px" aria-hidden="true">
+                        <path
+                            d="M16 3C9.373 3 4 8.373 4 15c0 2.385.68 4.618 1.857 6.514L4 29l7.703-1.832A12.94 12.94 0 0 0 16 28c6.627 0 12-5.373 12-12S22.627 3 16 3zm0 22a10.94 10.94 0 0 1-5.607-1.543l-.402-.24-4.574 1.088 1.118-4.46-.262-.42A10.942 10.942 0 0 1 5 16c0-6.065 4.935-11 11-11s11 4.935 11 11-4.935 11-11 11zm6.07-8.118c-.332-.166-1.963-.968-2.268-1.08-.304-.11-.526-.166-.747.166-.222.332-.86 1.08-1.053 1.303-.194.22-.387.25-.72.083-.332-.166-1.402-.516-2.67-1.648-.987-.88-1.653-1.966-1.847-2.298-.194-.332-.02-.512.146-.677.15-.149.332-.387.498-.58.166-.194.222-.332.332-.554.11-.222.055-.416-.027-.58-.083-.166-.747-1.8-1.023-2.466-.27-.647-.544-.56-.747-.57l-.637-.012c-.222 0-.581.083-.885.416-.304.332-1.16 1.133-1.16 2.764s1.188 3.207 1.354 3.43c.166.222 2.34 3.573 5.67 5.01.793.342 1.41.546 1.892.7.795.254 1.52.218 2.092.132.638-.096 1.963-.803 2.24-1.578.276-.774.276-1.438.193-1.578-.082-.138-.304-.222-.637-.388z" />
+                    </svg>
+                    WhatsApp Number for Confirmation
+                    <span class="modal-hint">(10 digits)</span>
+                </label>
+                <input type="tel" id="modal-whatsapp" class="modal-input" maxlength="10" placeholder="e.g. 9876543210"
+                    inputmode="numeric" autocomplete="tel" />
+            </div>
+
+            <p id="modal-error" class="modal-error" role="alert"></p>
+
+            <div class="modal-actions">
+                <button id="modal-cancel" class="modal-btn-cancel">Cancel</button>
+                <button id="modal-confirm" class="modal-btn-confirm btn-primary">Confirm Booking</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Booking Confirmation Popup ── -->
+    <div id="booking-confirm-popup" class="confirm-popup-overlay" role="dialog" aria-modal="true"
+        aria-labelledby="popup-title" hidden>
+        <div class="confirm-popup-card">
+            <!-- Header -->
+            <div class="popup-header">
+                <span class="popup-tick" aria-hidden="true">✅</span>
+                <h2 id="popup-title" class="popup-title">Booking Confirmed!</h2>
+            </div>
+
+            <!-- Booking details injected by JS -->
+            <div class="popup-details" id="popup-details"></div>
+
+            <!-- 15-min hold notice -->
+            <div class="popup-notice">
+                <span class="popup-notice-icon" aria-hidden="true">⏳</span>
+                <p>Your reservation will be held for <strong>15 minutes</strong> from the booked time. If you are
+                    running late or need to
+                    reschedule, please contact us immediately.</p>
+            </div>
+
+            <!-- Contact strip -->
+            <div class="popup-contact-strip">
+                <div class="popup-contact-item">
+                    <span>📞</span>
+                    <span>Call / WhatsApp: <strong>+91 70080 97978</strong></span>
+                </div>
+            </div>
+
+            <!-- CTA buttons -->
+            <div class="popup-actions">
+                <button id="btn-download-receipt" class="btn-primary"
+                    style="width:100%; display:flex; gap:8px; align-items:center; justify-content:center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Download Token Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+       BANQUET BOOKING POPUP (Guests > 20)
+    ══════════════════════════════════════════════════════════ -->
+    <div id="banquet-popup" class="confirm-popup-overlay" role="dialog" aria-modal="true" hidden>
+        <div class="confirm-popup-card">
+            <div class="popup-header">
+                <span class="popup-tick" aria-hidden="true" style="filter:none;">🎉</span>
+                <h2 class="popup-title">Banquet Booking Required</h2>
+            </div>
+
+            <div class="popup-notice" style="margin-top: 20px;">
+                <p>For bookings of <strong>more than 20 guests</strong>, please contact our Banquet team directly.</p>
+            </div>
+
+            <div class="popup-contact-strip" style="margin-top: 20px;">
+                <div class="popup-contact-item">
+                    <span>📞</span>
+                    <span>Call / WhatsApp: <strong>+91 70080 97978</strong></span>
+                </div>
+            </div>
+
+            <div class="popup-actions" style="margin-top: 20px; flex-direction: column; gap: 10px;">
+                <a id="btn-banquet-wa" class="btn-wa-customer" target="_blank" rel="noopener noreferrer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32"
+                        fill="currentColor" aria-hidden="true">
+                        <path
+                            d="M16 3C9.373 3 4 8.373 4 15c0 2.385.68 4.618 1.857 6.514L4 29l7.703-1.832A12.94 12.94 0 0 0 16 28c6.627 0 12-5.373 12-12S22.627 3 16 3zm0 22a10.94 10.94 0 0 1-5.607-1.543l-.402-.24-4.574 1.088 1.118-4.46-.262-.42A10.942 10.942 0 0 1 5 16c0-6.065 4.935-11 11-11s11 4.935 11 11-4.935 11-11 11zm6.07-8.118c-.332-.166-1.963-.968-2.268-1.08-.304-.11-.526-.166-.747.166-.222.332-.86 1.08-1.053 1.303-.194.22-.387.25-.72.083-.332-.166-1.402-.516-2.67-1.648-.987-.88-1.653-1.966-1.847-2.298-.194-.332-.02-.512.146-.677.15-.149.332-.387.498-.58.166-.194.222-.332.332-.554.11-.222.055-.416-.027-.58-.083-.166-.747-1.8-1.023-2.466-.27-.647-.544-.56-.747-.57l-.637-.012c-.222 0-.581.083-.885.416-.304.332-1.16 1.133-1.16 2.764s1.188 3.207 1.354 3.43c.166.222 2.34 3.573 5.67 5.01.793.342 1.41.546 1.892.7.795.254 1.52.218 2.092.132.638-.096 1.963-.803 2.24-1.578.276-.774.276-1.438.193-1.578-.082-.138-.304-.222-.637-.388z" />
+                    </svg>
+                    📩 Send to WhatsApp
+                </a>
+                <button type="button" class="btn-outline" onclick="closeBanquetPopup()"
+                    style="width: 100%;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/jspdf.umd.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+
+</html>
