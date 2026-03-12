@@ -43,11 +43,10 @@
     </nav>
 
     <main>
-        <!-- ── Page header ── -->
         <header class="page-header">
-            <p class="subtitle">✦ Reserve a Table ✦</p>
-            <h1>Choose Your Shift</h1>
-            <p>Select a shift, click tables to select them, then confirm your booking.</p>
+            <p class="subtitle">✦ Reserve a Token ✦</p>
+            <h1>Book Your Table</h1>
+            <p>Select your shift, enter your party size, and we'll assign your token automatically.</p>
         </header>
 
         <!-- ── Date Selector ── -->
@@ -62,47 +61,68 @@
             <div class="shift-toggle">
                 <button class="shift-btn active" data-shift="Lunch" role="radio" aria-checked="true" id="btn-lunch">
                     <span class="shift-icon">☀️</span>Lunch
-                    <span class="shift-count">10</span>
+                    <span class="shift-count">40</span>
                 </button>
                 <button class="shift-btn" data-shift="Dinner" role="radio" aria-checked="false" id="btn-dinner">
                     <span class="shift-icon">🌙</span>Dinner
-                    <span class="shift-count">15</span>
+                    <span class="shift-count">40</span>
                 </button>
             </div>
         </div>
 
 
-        <!-- ── Stats bar ── -->
-        <div class="stats-bar" aria-live="polite" aria-label="Table availability summary">
-            <div class="stat-item">
-                <span class="stat-dot green" aria-hidden="true"></span>
-                Available: <strong id="count-available">—</strong>
-            </div>
-            <div class="stat-item">
-                <span class="stat-dot red" aria-hidden="true"></span>
-                Occupied: <strong id="count-occupied">—</strong>
-            </div>
-        </div>
 
-        <!-- ── Tables section ── -->
-        <section class="tables-section" aria-label="Table map">
-            <p class="section-label" aria-hidden="true">— Table Map — click to select —</p>
-            <div class="tables-grid" id="tables-grid" role="list" aria-label="Available tables">
-                <!-- Injected by dashboard.js -->
+        <!-- ── Single Token Booking Card ── -->
+        <section class="token-section" aria-label="Book a token">
+            <div class="token-card" id="token-card">
+                <div class="token-card-header">
+                    <span class="token-icon">🎫</span>
+                    <div>
+                        <h2 class="token-card-title">Book a Token</h2>
+                        <p class="token-card-sub">Fill in the details below to reserve your spot</p>
+                    </div>
+                </div>
+
+                <div class="token-fields">
+                    <div class="token-grid-row">
+                        <div class="token-field">
+                            <label for="tk-slot" class="token-label">⏰ Time Slot</label>
+                            <select id="tk-slot" class="token-select"></select>
+                        </div>
+
+                        <div class="token-field">
+                            <label for="tk-people" class="token-label">👥 Guests <span class="token-hint">(max 20)</span></label>
+                            <input type="number" id="tk-people" class="token-input" min="1" max="20" placeholder="e.g. 4" autocomplete="off" inputmode="numeric" />
+                        </div>
+                    </div>
+
+                    <div class="token-field">
+                        <label for="tk-whatsapp" class="token-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 32 32" fill="#25d366" style="vertical-align:middle;margin-right:4px" aria-hidden="true"><path d="M16 3C9.373 3 4 8.373 4 15c0 2.385.68 4.618 1.857 6.514L4 29l7.703-1.832A12.94 12.94 0 0 0 16 28c6.627 0 12-5.373 12-12S22.627 3 16 3zm0 22a10.94 10.94 0 0 1-5.607-1.543l-.402-.24-4.574 1.088 1.118-4.46-.262-.42A10.942 10.942 0 0 1 5 16c0-6.065 4.935-11 11-11s11 4.935 11 11-4.935 11-11 11zm6.07-8.118c-.332-.166-1.963-.968-2.268-1.08-.304-.11-.526-.166-.747.166-.222.332-.86 1.08-1.053 1.303-.194.22-.387.25-.72.083-.332-.166-1.402-.516-2.67-1.648-.987-.88-1.653-1.966-1.847-2.298-.194-.332-.02-.512.146-.677.15-.149.332-.387.498-.58.166-.194.222-.332.332-.554.11-.222.055-.416-.027-.58-.083-.166-.747-1.8-1.023-2.466-.27-.647-.544-.56-.747-.57l-.637-.012c-.222 0-.581.083-.885.416-.304.332-1.16 1.133-1.16 2.764s1.188 3.207 1.354 3.43c.166.222 2.34 3.573 5.67 5.01.793.342 1.41.546 1.892.7.795.254 1.52.218 2.092.132.638-.096 1.963-.803 2.24-1.578.276-.774.276-1.438.193-1.578-.082-.138-.304-.222-.637-.388z"/></svg>
+                            WhatsApp Number <span class="token-hint">(10 digits)</span>
+                        </label>
+                        <input type="tel" id="tk-whatsapp" class="token-input" maxlength="10" placeholder="e.g. 9876543210" inputmode="numeric" autocomplete="tel" />
+                    </div>
+                </div>
+
+                <p id="tk-error" class="token-error" role="alert"></p>
+
+                <!-- Availability badge -->
+                <div class="token-avail" id="token-avail">
+                    <span class="stat-dot green" id="token-avail-dot"></span>
+                    <span id="seats-left-badge" class="seats-badge">40 seats left</span>
+                </div>
+                <p id="booking-status-text" class="booking-status-msg" hidden></p>
+
+
+
+                <button id="btn-book-token" class="btn-primary token-confirm-btn">🎫 Confirm Token Booking</button>
             </div>
         </section>
     </main>
 
-    <!-- ── Sticky Booking Bar ── -->
-    <div id="book-bar" class="book-bar" role="region" aria-label="Booking selection bar">
-        <span class="book-bar-hint">✓ Tables selected. Choose your time and party size.</span>
-        <button id="btn-open-modal" class="btn-primary book-bar-btn">
-            <span id="book-bar-count">Book 0 Tables →</span>
-        </button>
-    </div>
-
-    <!-- ── Booking Modal ── -->
-    <div id="booking-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <!-- ── Booking Modal (kept for PDF/confirmation popup reuse) ── -->
+    <div id="booking-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="display:none">
         <div class="modal-card">
             <h2 id="modal-title" class="modal-title">📅 Confirm Booking</h2>
             <p class="modal-subtitle">
@@ -192,7 +212,7 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════
-       BANQUET BOOKING POPUP (Guests > 20)
+       BANQUET BOOKING POPUP (Guests >= 20)
     ══════════════════════════════════════════════════════════ -->
     <div id="banquet-popup" class="confirm-popup-overlay" role="dialog" aria-modal="true" hidden>
         <div class="confirm-popup-card">
@@ -202,7 +222,7 @@
             </div>
 
             <div class="popup-notice" style="margin-top: 20px;">
-                <p>For bookings of <strong>more than 20 guests</strong>, please contact our Banquet team directly.</p>
+                <p>For bookings of <strong>20 or more guests</strong>, please contact our Banquet team directly.</p>
             </div>
 
             <div class="popup-contact-strip" style="margin-top: 20px;">
@@ -226,6 +246,35 @@
             </div>
         </div>
     </div>
+
+    <!-- ── WAITLIST / FULL HOUSE POPUP ── -->
+    <div id="waitlist-popup" class="confirm-popup-overlay" role="dialog" aria-modal="true" hidden>
+        <div class="confirm-popup-card">
+            <div class="popup-header">
+                <span class="popup-tick" aria-hidden="true" style="background:#f39c12">⏳</span>
+                <h2 class="popup-title">Capacity Reached</h2>
+            </div>
+            <div class="popup-notice" style="margin-top: 20px;">
+                <p style="font-size: 1.1rem; line-height: 1.5;"><strong>All tables are currently booked.</strong></p>
+                <p>Your request has been registered and the admin has been notified. We will contact you if a spot becomes available.</p>
+            </div>
+            <div class="popup-actions" style="margin-top: 30px;">
+                <button class="btn-primary" onclick="closeWaitlistPopup()" style="width: 100%;">Understood</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Footer: Community Visibility ── -->
+    <footer class="dashboard-footer">
+        <div id="community-bookings" class="community-bookings" hidden>
+            <div class="footer-content">
+                <h4>Other Bookings</h4>
+                <div id="community-guest-list" class="guest-list-chips">
+                    <!-- Chips will be added here -->
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script src="js/jspdf.umd.min.js"></script>
     <script src="js/api.js"></script>

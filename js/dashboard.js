@@ -22,9 +22,13 @@ let currentShift = 'Lunch';
 let selectedDate = getTodayIST(); // From api.js helper
 let allLunch = [];   // cache both shifts so we can detect cross-shift bookings
 let allDinner = [];
+let lunchGuests = []; // Store guest list {name, guests}
+let dinnerGuests = [];
+let lunchTotal = 0;   // Store total guest counts
+let dinnerTotal = 0;
 let pollTimer = null;
 let sessionUser = null;
-let selectedTables = new Set();
+
 // Returns true if it is 3:00 PM IST or later (lunch time has ended for today)
 function isLunchOverForToday() {
     const now = new Date();
@@ -62,26 +66,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const label = myBookings.map(b => {
             const num = b.tableId.replace(/^[A-Z]/, '');
-            return `Table ${num} (${b.shift})`;
+            return `Token ${num} (${b.shift})`;
         }).join(', ');
         if (!confirm(`Cancel your booking: ${label}?`)) return;
 
         showLoader(true);
-
-        // Optimistically clear from local state
-        clearLocalBookings(myBookings);
-        renderCurrentShift();
-        updateShiftTabLocks();
-        updateNavButtons();
-        selectedTables.clear();
-        updateBookBar();
-        showLoader(false);
-        showToast('Your booking has been cancelled.', 'success');
-
-        // 2️⃣ Fire GAS calls in background (poll will confirm)
-        for (const b of myBookings) {
-            try { await apiCancelBooking(b.tableId, b.shift, b.contact, selectedDate); }
-            catch (err) { console.error('Cancel failed:', err); }
+        try {
+            // Cancel all bookings in parallel for speed
+            await Promise.all(myBookings.map(b => 
+                apiCancelBooking(b.tableId, b.shift, b.contact, selectedDate)
+            ));
+            
+            showToast('Your booking has been cancelled.', 'success');
+        } catch (err) {
+            console.error('Cancel failed:', err);
+            showToast('Some cancellations failed. Please try again.', 'error');
+        } finally {
+            await loadBothShifts();
+            showLoader(false);
         }
     });
 
@@ -91,11 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
             b => b.status === 'Occupied' && b.guestName === sessionUser.name
         );
         if (!myBookings.length) return;
-
-        // Use the first booking for shared metadata (time slot, group size, etc)
         const first = myBookings[0];
         const allTableIds = myBookings.map(b => b.tableId).sort((a, b) => a.localeCompare(b));
-
         generateTokenReceiptPDF({
             tables: allTableIds,
             shift: first.shift,
@@ -113,44 +112,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const shift = btn.dataset.shift;
             if (shift === currentShift) return;
 
-            // Block switch if user has a booking in the OTHER shift
             const lockedTo = getLockedShift();
             if (lockedTo && lockedTo !== shift) {
                 showToast(`You have an active ${lockedTo} booking. Cancel it first to switch shifts.`, 'error');
                 return;
             }
-
-            // Block switching TO lunch if it is disabled or time has passed
             if (shift === 'Lunch' && isLunchBlocked()) {
                 showToast('Lunch booking for today is closed. Please select Dinner slot or book for another date.', 'error');
                 return;
             }
 
             currentShift = shift;
-            selectedTables.clear();
-            updateBookBar();
             document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            renderCurrentShift();
+            populateTokenSlots();
+            updateTokenAvail();
         });
     });
 
-    // Sticky book bar
-    document.getElementById('btn-open-modal').addEventListener('click', openBookingModal);
-
-    // Modal controls
-    document.getElementById('modal-cancel').addEventListener('click', closeBookingModal);
-    document.getElementById('booking-modal').addEventListener('click', e => {
-        if (e.target.id === 'booking-modal') closeBookingModal();
-    });
-    document.getElementById('modal-confirm').addEventListener('click', handleModalConfirm);
+    // Token card confirm button
+    document.getElementById('btn-book-token').addEventListener('click', handleTokenBook);
 
     loadBothShifts();
     pollTimer = setInterval(loadBothShifts, POLL_INTERVAL);
 
-    // Every 60 seconds, re-check if 3PM IST has passed to auto-lock Lunch tab
     setInterval(updateLunchDisabledUI, 60_000);
-    updateLunchDisabledUI(); // also check immediately on page load
+    updateLunchDisabledUI();
 });
 
 // ── Date Selector ─────────────────────────────────────────────
@@ -190,8 +177,6 @@ function renderDateSelector() {
             document.querySelectorAll('.date-pill').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            selectedTables.clear();
-            updateBookBar();
             showLoader(true);
             loadBothShifts().finally(() => showLoader(false));
         });
@@ -203,16 +188,19 @@ function renderDateSelector() {
 // ── Fetch BOTH shifts in ONE GAS call ────────────────────────
 async function loadBothShifts() {
     try {
-        let both = await apiGetBothShifts(selectedDate); // single spreadsheet read
-
-        if (both.lunch.length < 10 || both.dinner.length < 15) {
-            console.warn(`Sheet data incomplete for ${selectedDate} (L:${both.lunch.length}, D:${both.dinner.length}). Run "Initialise Sheets" from admin panel.`);
-        }
-
+        const both = await apiGetBothShifts(selectedDate);
         allLunch = both.lunch;
         allDinner = both.dinner;
+        lunchTotal = both.lunchTotalGuests || 0;
+        dinnerTotal = both.dinnerTotalGuests || 0;
+        lunchGuests = both.lunchGuests || [];
+        dinnerGuests = both.dinnerGuests || [];
+        window.lunchTotalGuests = both.lunchTotalGuests || 0;
+        window.dinnerTotalGuests = both.dinnerTotalGuests || 0;
+        window.todayDisabled = both.todayDisabled === true;
 
         updateLunchDisabledUI();
+        updateGlobalDisabledUI();
 
         // If user has a booking, auto-focus to that shift
         const lockedTo = getLockedShift();
@@ -223,19 +211,13 @@ async function loadBothShifts() {
             });
         }
 
-        // Remove selections that are now occupied / in wrong shift
-        getCurrentBookings().forEach(b => {
-            if (b.status === 'Occupied') selectedTables.delete(b.tableId);
-        });
-
-        renderCurrentShift();
-        renderStats(getCurrentBookings());
-        updateBookBar();
+        populateTokenSlots();
+        updateTokenAvail();
         updateShiftTabLocks();
         updateNavButtons();
     } catch (err) {
         console.error(err);
-        showError();
+        showToast('Could not load availability. Check your connection.', 'error');
     }
 }
 
@@ -244,7 +226,7 @@ function getCurrentBookings() {
     return currentShift === 'Lunch' ? allLunch : allDinner;
 }
 
-// Helper: returns 'Lunch' or 'Dinner' if user has booking there, else null
+// Helper: returns 'Lunch'/'Dinner' if user has an active booking there, else null
 function getLockedShift() {
     if (allLunch.some(b => b.status === 'Occupied' && b.guestName === sessionUser.name)) return 'Lunch';
     if (allDinner.some(b => b.status === 'Occupied' && b.guestName === sessionUser.name)) return 'Dinner';
@@ -272,7 +254,84 @@ function updateNavButtons() {
     }
 }
 
-// Update Lunch shift tab UI based on disabled/time-expired state
+// ── Token card helpers ────────────────────────────────────────
+function populateTokenSlots() {
+    const select = document.getElementById('tk-slot');
+    if (!select) return;
+    select.innerHTML = '';
+    const slots = currentShift === 'Lunch' ? LUNCH_SLOTS : DINNER_SLOTS;
+    slots.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s;
+        select.appendChild(opt);
+    });
+}
+
+function updateTokenAvail() {
+    const bookings = getCurrentBookings();
+    const guests = currentShift === 'Lunch' ? lunchGuests : dinnerGuests;
+    const total = currentShift === 'Lunch' ? lunchTotal : dinnerTotal;
+    const capacity = 40;
+    const left = Math.max(0, capacity - total);
+
+    const dot = document.getElementById('token-avail-dot');
+    if (dot) {
+        dot.className = left > 0 ? 'stat-dot green' : 'stat-dot red';
+    }
+
+    const elBadge = document.getElementById('seats-left-badge');
+    if (elBadge) {
+        elBadge.textContent = `${left} seat${left !== 1 ? 's' : ''} left`;
+        elBadge.classList.toggle('low-seats', left <= 5);
+    }
+
+    // Community Guest List
+    const communitySection = document.getElementById('community-bookings');
+    const guestListEl = document.getElementById('community-guest-list');
+    if (communitySection && guestListEl) {
+        communitySection.hidden = false; // Always show the section structure
+        if (guests.length > 0) {
+            guestListEl.innerHTML = '';
+            guests.forEach(g => {
+                const chip = document.createElement('div');
+                chip.className = 'guest-chip';
+                const isMe = g.name === sessionUser.name;
+                chip.innerHTML = `<span class="chip-name">${escapeHtml(g.name)}${isMe ? ' (You)' : ''}</span> — <span class="chip-guest-count">${g.guests} guest${g.guests !== 1 ? 's' : ''}</span>`;
+                if (isMe) chip.classList.add('is-me');
+                guestListEl.appendChild(chip);
+            });
+        } else {
+            guestListEl.innerHTML = '<p class="empty-community">No other bookings for today yet.</p>';
+        }
+    }
+
+    // Disable book button if user already has a booking or bookings are globally disabled
+    const hasBooking = getLockedShift() !== null;
+    const isGloballyDisabled = (selectedDate === getTodayIST() && window.todayDisabled);
+    const btn = document.getElementById('btn-book-token');
+    if (btn) {
+        btn.disabled = hasBooking || isGloballyDisabled;
+        if (hasBooking) {
+            btn.title = 'You already have an active booking. Cancel it first.';
+        } else if (isGloballyDisabled) {
+            btn.title = "Today's bookings are currently closed by admin.";
+        } else {
+            btn.title = '';
+        }
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// ── Update Lunch shift tab UI based on time ───────────────────
 function updateLunchDisabledUI() {
     const lunchBtn = document.querySelector('.shift-btn[data-shift="Lunch"]');
     if (!lunchBtn) return;
@@ -288,289 +347,143 @@ function updateLunchDisabledUI() {
             currentShift = 'Dinner';
             document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
             dinnerBtn.classList.add('active');
-            renderCurrentShift();
+            populateTokenSlots();
+            updateTokenAvail();
         }
         showToast('Lunch booking for today is closed. Please select Dinner slot or book for another date.', 'error');
     }
 }
 
-// ── Skeleton loading ──────────────────────────────────────────
-function showSkeletons() {
-    const count = currentShift === 'Lunch' ? 10 : 15;
-    const grid = document.getElementById('tables-grid');
-    grid.innerHTML = '';
-    for (let i = 0; i < count; i++) {
-        const div = document.createElement('div');
-        div.className = 'table-card skeleton';
-        grid.appendChild(div);
-    }
-}
-
-// ── Render tables ─────────────────────────────────────────────
-function renderCurrentShift() {
-    renderTables(getCurrentBookings());
-    renderStats(getCurrentBookings());
-}
-
-function renderTables(bookings) {
-    const grid = document.getElementById('tables-grid');
-    grid.innerHTML = '';
-
-    // If lunch is disabled/time expired for the selected date, show a full closed screen
-    const lunchClosed = currentShift === 'Lunch' && isLunchBlocked();
-    if (lunchClosed) {
-        grid.innerHTML = `
-            <div class="lunch-closed-banner">
-                <div class="lunch-closed-icon">🚫</div>
-                <h3>Lunch Booking Closed</h3>
-                <p>Lunch booking for today has been closed by the restaurant.<br>Please select the <strong>Dinner</strong> slot or book for another date.</p>
-            </div>
-        `;
-        // Clear any selected tables
-        selectedTables.clear();
-        updateBookBar();
-        return;
-    }
-
-    bookings.forEach(b => {
-        const isOccupied = b.status === 'Occupied';
-        const isSelected = selectedTables.has(b.tableId);
-        const card = document.createElement('div');
-        card.className = `table-card ${isOccupied ? 'occupied' : 'available'}${isSelected ? ' selected' : ''}`;
-        card.dataset.id = b.tableId;
-        const isMyBooking = (isOccupied && b.guestName === sessionUser.name);
-
-        const num = b.tableId.replace(/^[A-Z]/, '');
-
-        card.innerHTML = `
-            <div class="card-icon">${isOccupied ? '🔴' : isSelected ? '✅' : '🟢'}</div>
-            <div class="card-number">${num}</div>
-            <div class="card-label">${isOccupied ? 'Occupied' : isSelected ? 'Selected' : 'Available'}</div>
-            ${isOccupied && b.guestName ? `<div class="card-guest">${escapeHtml(b.guestName)}</div>` : ''}
-        `;
-
-        if (!isOccupied) {
-            card.addEventListener('click', () => toggleTableSelection(b.tableId));
-            card.setAttribute('role', 'button');
-            card.setAttribute('tabindex', '0');
-            card.setAttribute('aria-label', `${isSelected ? 'Deselect' : 'Select'} table ${num}`);
-            card.addEventListener('keydown', e => {
-                if (e.key === 'Enter' || e.key === ' ') toggleTableSelection(b.tableId);
-            });
-        } else {
-            card.setAttribute('aria-label', `Table ${num} is occupied`);
+// ── Global Disabled UI ───────────────────────────────────────
+function updateGlobalDisabledUI() {
+    const isToday = selectedDate === getTodayIST();
+    const isDisabled = isToday && window.todayDisabled;
+    
+    const btn = document.getElementById('btn-book-token');
+    const statusText = document.getElementById('booking-status-text');
+    
+    if (isDisabled) {
+        if (btn) btn.disabled = true;
+        if (statusText) {
+            statusText.textContent = "Today's Online Bookings are currently CLOSED by Admin.";
+            statusText.style.color = "var(--red)";
+            statusText.hidden = false;
         }
-
-        grid.appendChild(card);
-    });
-}
-
-function renderStats(bookings) {
-    document.getElementById('count-available').textContent = bookings.filter(b => b.status === 'Available').length;
-    document.getElementById('count-occupied').textContent = bookings.filter(b => b.status === 'Occupied').length;
-}
-
-
-// ── Cancel user's own booking ─────────────────────────────────
-async function handleCancelBooking(tableId, shift) {
-    const num = tableId.replace(/^[A-Z]/, '');
-    if (!confirm(`Cancel your booking for Table ${num} (${shift})?`)) return;
-
-    // Update local state
-    clearLocalBookings([{ tableId, shift }]);
-    renderCurrentShift();
-    updateShiftTabLocks();
-    selectedTables.delete(tableId);
-    updateBookBar();
-    showToast(`Table ${num} booking cancelled.`, 'success');
-
-    // Send to GAS (poll will confirm state)
-    try {
-        const myOriginalBooking = [...allLunch, ...allDinner].find(b => b.tableId === tableId && b.shift === shift);
-        const contactToCancel = myOriginalBooking ? myOriginalBooking.contact : sessionUser.contact;
-        await apiCancelBooking(tableId, shift, contactToCancel, selectedDate);
-    } catch (err) {
-        console.error('GAS cancel error:', err);
-    }
-}
-
-// Helper: mark bookings as Available in the local allLunch/allDinner arrays
-function clearLocalBookings(bookings) {
-    bookings.forEach(({ tableId, shift }) => {
-        const arr = shift === 'Lunch' ? allLunch : allDinner;
-        const item = arr.find(b => b.tableId === tableId);
-        if (item) {
-            item.status = 'Available';
-            item.guestName = '';
-            item.contact = '';
-            item.timeSlot = '';
-            item.numPeople = '';
-            item.bookingDate = '';
+    } else {
+        // Only hide if lunch is not blocked either
+        if (!isLunchBlocked()) {
+            if (statusText) statusText.hidden = true;
         }
-    });
-}
-
-// ── Multi-table selection ─────────────────────────────────────
-function toggleTableSelection(tableId) {
-    if (selectedTables.has(tableId)) {
-        selectedTables.delete(tableId);
-    } else {
-        selectedTables.add(tableId);
-    }
-    renderTables(getCurrentBookings());
-    updateBookBar();
-}
-
-function updateBookBar() {
-    const bar = document.getElementById('book-bar');
-    const countEl = document.getElementById('book-bar-count');
-    const count = selectedTables.size;
-    if (count > 0) {
-        countEl.textContent = `Book ${count} Table${count > 1 ? 's' : ''} →`;
-        bar.classList.add('visible');
-    } else {
-        bar.classList.remove('visible');
     }
 }
 
-// ── Modal ─────────────────────────────────────────────────────
-function openBookingModal() {
-    // Block if user already has a booking in the OTHER shift
-    const lockedTo = getLockedShift();
-    if (lockedTo && lockedTo !== currentShift) {
-        showToast(`You already have a ${lockedTo} booking. Cancel it first.`, 'error');
-        return;
-    }
 
-    const slotSelect = document.getElementById('modal-slot');
-    slotSelect.innerHTML = '';
-    const slots = currentShift === 'Lunch' ? LUNCH_SLOTS : DINNER_SLOTS;
-    slots.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s; opt.textContent = s;
-        slotSelect.appendChild(opt);
-    });
+// ── Token booking confirm ─────────────────────────────────────
+async function handleTokenBook() {
+    const errEl = document.getElementById('tk-error');
+    errEl.textContent = '';
 
-    const dateLabel = document.querySelector('.date-pill.active')?.dataset.label || 'Today';
-    document.getElementById('modal-date-label').textContent = dateLabel;
-    document.getElementById('modal-shift-label').textContent = currentShift;
-    document.getElementById('modal-table-count').textContent = selectedTables.size;
-    document.getElementById('modal-people').value = '';
-    document.getElementById('modal-whatsapp').value = '';
-    document.getElementById('modal-error').textContent = '';
-    document.getElementById('booking-modal').classList.add('open');
-    setTimeout(() => document.getElementById('modal-people').focus(), 100);
-}
-
-function closeBookingModal() {
-    document.getElementById('booking-modal').classList.remove('open');
-}
-
-async function handleModalConfirm() {
-    const timeSlot = document.getElementById('modal-slot').value;
-    const numPeople = parseInt(document.getElementById('modal-people').value, 10);
-    const whatsappRaw = document.getElementById('modal-whatsapp').value.trim();
-    const errEl = document.getElementById('modal-error');
-
-    // Guard: block if lunch is disabled or time has expired (3 PM IST)
     if (currentShift === 'Lunch' && isLunchBlocked()) {
-        errEl.textContent = 'Lunch booking for today is closed. Please select Dinner slot or book for another date.';
+        errEl.textContent = 'Lunch booking for today is closed. Please select Dinner or another date.';
         return;
     }
+
+    const lockedTo = getLockedShift();
+    if (lockedTo) {
+        errEl.textContent = `You already have an active ${lockedTo} booking. Cancel it first.`;
+        return;
+    }
+
+    const timeSlot = document.getElementById('tk-slot').value;
+    const numPeople = parseInt(document.getElementById('tk-people').value, 10);
+    const whatsappRaw = document.getElementById('tk-whatsapp').value.trim();
 
     if (!numPeople || numPeople < 1) {
-        errEl.textContent = 'Please enter a valid number of people.';
+        errEl.textContent = 'Please enter a valid number of guests.';
         return;
     }
     if (numPeople > 20) {
-        closeBookingModal();
         showBanquetPopup(numPeople, sessionUser.name);
         return;
     }
-
-    // ── Automatic Table Allocation ──────────────────────────────
-    const requiredTables = Math.ceil(numPeople / 4);
-
-    // If not enough tables selected, auto-select more contiguous Available tables
-    if (selectedTables.size < requiredTables) {
-        const needed = requiredTables - selectedTables.size;
-
-        // Find other available tables in the current shift map
-        const currentData = currentShift === 'Lunch' ? allLunch : allDinner;
-        const availableTables = currentData.filter(t => t.status === 'Available' && !selectedTables.has(t.tableId));
-
-        if (availableTables.length < needed) {
-            errEl.textContent = `Not enough available tables. You need ${requiredTables} tables for ${numPeople} guests, but only ${selectedTables.size + availableTables.length} are free.`;
-            return;
-        }
-
-        // Auto-add the first N needed tables (Ideally we'd sort by proximity, but lexical sort is a good proxy for now)
-        availableTables.sort((a, b) => a.tableId.localeCompare(b.tableId));
-        for (let i = 0; i < needed; i++) {
-            selectedTables.add(availableTables[i].tableId);
-        }
-    }
-
-    // If too many tables selected, auto-remove the excess
-    if (selectedTables.size > requiredTables) {
-        const selectedArr = Array.from(selectedTables);
-        selectedTables.clear();
-        for (let i = 0; i < requiredTables; i++) {
-            selectedTables.add(selectedArr[i]);
-        }
-        // showToast(`Auto-adjusted to ${requiredTables} table(s) for ${numPeople} guests.`, 'success');
-    }
-
     if (!whatsappRaw || !/^\d{10}$/.test(whatsappRaw)) {
         errEl.textContent = 'Please enter a valid 10-digit WhatsApp number.';
-        document.getElementById('modal-whatsapp').focus();
         return;
     }
+
+    // ── GUEST LIMIT CHECK (SHIFT LEVEL) ─────────────────────────
+    const currentShiftTotal = (currentShift === 'Lunch' ? window.lunchTotalGuests : window.dinnerTotalGuests) || 0;
+    
+    // If shift is full (40 guests or more), reg as persistent request
+    if (currentShiftTotal >= 40) {
+        showLoader(true);
+        try {
+            await apiSubmitRequest(sessionUser.name, whatsappRaw, numPeople, selectedDate, currentShift);
+            showLoader(false);
+            showWaitlistPopup();
+            // Clear form
+            document.getElementById('tk-people').value = '';
+            document.getElementById('tk-whatsapp').value = '';
+            return;
+        } catch (err) {
+            showLoader(false);
+            errEl.textContent = 'Failed to submit request: ' + err.message;
+            return;
+        }
+    }
+
+    // Auto-allocate the required tables based on guest count (4 per table)
+    const requiredTables = Math.ceil(numPeople / 4);
+    const currentData = getCurrentBookings();
+    const available = currentData.filter(t => t.status === 'Available');
+
+    if (available.length < requiredTables) {
+        errEl.textContent = `Not enough tokens available. Need ${requiredTables} for ${numPeople} guests, only ${available.length} free.`;
+        return;
+    }
+
+    // Pick the first N available (sorted by tableId for consistency)
+    available.sort((a, b) => a.tableId.localeCompare(b.tableId));
+    const tablesToBook = available.slice(0, requiredTables).map(t => t.tableId);
+
+    showLoader(true);
     errEl.textContent = '';
 
-    closeBookingModal();
-    showLoader(true);
-
-    const tablesToBook = [...selectedTables];
-
-    // ── Bulk booking: ONE GAS call for all selected tables ──────
     const payload = tablesToBook.map(tableId => ({
         tableId,
         shift: currentShift,
         guestName: sessionUser.name,
-        contact: whatsappRaw, // use input whatsapp number instead of login number
+        contact: whatsappRaw,
         timeSlot,
         numPeople,
         bookingDate: selectedDate
     }));
 
     let successCount = 0;
-    let failCount = 0;
     let lastError = '';
 
     try {
         const resp = await apiBookTables(payload);
         (resp.results || []).forEach(r => {
             if (r.success) successCount++;
-            else { failCount++; lastError = r.error || 'Booking failed'; }
+            else lastError = r.error || 'Booking failed';
         });
         if (!resp.success && !resp.results) {
-            // Whole-request error (e.g. cross-shift guard triggered)
             lastError = resp.error || 'Booking failed';
-            failCount = tablesToBook.length;
         }
     } catch (err) {
-        console.error('Bulk booking error:', err);
+        console.error('Token booking error:', err);
         lastError = err.message;
-        failCount = tablesToBook.length;
     }
 
-    selectedTables.clear();
     await loadBothShifts();
     showLoader(false);
 
-    if (failCount === 0) {
-        // Show confirmation popup + trigger PDF generation
+    if (successCount > 0) {
+        // Clear form
+        document.getElementById('tk-people').value = '';
+        document.getElementById('tk-whatsapp').value = '';
+
         const dateLabel = document.querySelector('.date-pill.active')?.dataset.label || 'Today';
         showBookingConfirmPopup({
             tables: tablesToBook,
@@ -581,22 +494,19 @@ async function handleModalConfirm() {
             whatsapp: whatsappRaw,
             bookingDateStr: dateLabel
         });
-    } else if (successCount === 0) {
-        showToast(lastError || 'Booking failed.', 'error');
     } else {
-        showToast(`${successCount} booked, ${failCount} failed — ${lastError}`, 'error');
+        errEl.textContent = lastError || 'Booking failed. Please try again.';
     }
 }
 
-// ── Error state ───────────────────────────────────────────────
-function showError() {
-    document.getElementById('tables-grid').innerHTML = `
-        <div class="state-message" style="grid-column:1/-1">
-            <div class="icon">⚠️</div>
-            <p>Could not load tables. Check your connection or the GAS web app URL in <code>js/api.js</code>.</p>
-            <button class="btn-retry" onclick="loadBothShifts()">Retry</button>
-        </div>
-    `;
+function showWaitlistPopup() {
+    const popup = document.getElementById('waitlist-popup');
+    if (popup) popup.hidden = false;
+}
+
+function closeWaitlistPopup() {
+    const popup = document.getElementById('waitlist-popup');
+    if (popup) popup.hidden = true;
 }
 
 // ── Helpers ───────────────────────────────────────────────────

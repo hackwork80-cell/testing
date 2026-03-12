@@ -7,14 +7,14 @@ var SPREADSHEET_ID  = '12YRBb_Tj9KiESQi2408KARmfMppjQdhAHuEqeMaosio';
 var BOOKINGS_SHEET  = 'Bookings';
 var USERS_SHEET     = 'Users';
 var CUSTOMERS_SHEET = 'Customers';
+var REQUESTS_SHEET  = 'Requests';
+var CONFIG_SHEET    = 'Config';
 var SESSION_HOURS   = 8;
 var ADVANCE_DAYS    = 2;
 
 // ── Date helper ───────────────────────────────────────────────
-// Returns YYYY-MM-DD string for a date offset by `offset` days from today (IST)
 function dateString(offset) {
   var now = new Date();
-  // Adjust to IST (UTC+5:30)
   var ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
   ist.setUTCDate(ist.getUTCDate() + (offset || 0));
   var y = ist.getUTCFullYear();
@@ -38,6 +38,7 @@ function doGet(e) {
   try {
     if (action === 'getBookings')       return getBookings(e.parameter.shift, e.parameter.date);
     if (action === 'getBothShifts')     return getBothShifts(e.parameter.date);
+    if (action === 'getRequests')       return getRequests(e.parameter.date);
     if (action === 'initSheets')        return initSheets();
     if (action === 'cleanupSessions')   return cleanupExpiredSessions();
     if (action === 'cleanupPast')       return cleanupPastBookings();
@@ -54,8 +55,12 @@ function doPost(e) {
     if (action === 'addUser')         return addUser(data);
     if (action === 'bookTable')       return bookTable(data);
     if (action === 'bookTables')      return bookTables(data);
+    if (action === 'submitRequest')   return submitRequest(data);
     if (action === 'clearTable')      return clearTable(data);
+    if (action === 'clearUserBookings') return clearUserBookings(data);
     if (action === 'cancelBooking')   return cancelBooking(data);
+    if (action === 'deleteRequest')   return deleteRequest(data);
+    if (action === 'setTodayDisabled') return setTodayDisabled(data);
     if (action === 'initSheets')      return initSheets();
     return jsonResponse({ error: 'Unknown action: ' + action });
   } catch (err) {
@@ -64,19 +69,33 @@ function doPost(e) {
 }
 
 // ── getBothShifts(date) ───────────────────────────────────────
-// Columns: [0]TableID [1]Shift [2]Status [3]GuestName [4]Contact
-//          [5]TimeSlot [6]BookingDate [7]NumPeople
 function getBothShifts(date) {
   var filterDate = date || todayString();
   var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  
+  // Check global disable for today
+  var todayDisabled = false;
+  var cSheet = ss.getSheetByName(CONFIG_SHEET);
+  if (cSheet && filterDate === todayString()) {
+    var val = cSheet.getRange(1, 2).getValue();
+    if (val === true || val === 'TRUE') todayDisabled = true;
+  }
+
   var sheet = ss.getSheetByName(BOOKINGS_SHEET);
   var rows  = sheet.getDataRange().getDisplayValues();
   var lunch   = [];
   var dinner  = [];
+  var lunchTotalGuests  = 0;
+  var dinnerTotalGuests = 0;
+
+  // Track unique bookings per shift to avoid double counting guests across tables
+  var lunchInstanceMap = {};
+  var dinnerInstanceMap = {};
 
   for (var i = 1; i < rows.length; i++) {
     var row = rows[i];
     if (String(row[6]) !== filterDate) continue;
+    
     var obj = {
       tableId:     row[0],
       shift:       row[1],
@@ -88,10 +107,58 @@ function getBothShifts(date) {
       numPeople:   row[7] || '',
       rowIndex:    i + 1
     };
-    if (row[1] === 'Lunch')  lunch.push(obj);
-    if (row[1] === 'Dinner') dinner.push(obj);
+
+    if (row[1] === 'Lunch') {
+      lunch.push(obj);
+      if (row[2] === 'Occupied') {
+        var keyL = row[3] + '|' + row[4] + '|' + row[5];
+        if (!lunchInstanceMap[keyL]) {
+          var countL = parseInt(row[7]) || 0;
+          lunchInstanceMap[keyL] = countL;
+          lunchTotalGuests += countL;
+        }
+      }
+    }
+    if (row[1] === 'Dinner') {
+      dinner.push(obj);
+      if (row[2] === 'Occupied') {
+        var keyD = row[3] + '|' + row[4] + '|' + row[5];
+        if (!dinnerInstanceMap[keyD]) {
+          var countD = parseInt(row[7]) || 0;
+          dinnerInstanceMap[keyD] = countD;
+          dinnerTotalGuests += countD;
+        }
+      }
+    }
   }
-  return jsonResponse({ success: true, lunch: lunch, dinner: dinner });
+
+  // Create unique guest lists (de-duplicated by Name + Contact + TimeSlot)
+  var lunchGuestList = [];
+  for (var kL in lunchInstanceMap) {
+    if (kL === 'true') continue; // Skip the boolean marker if any
+    var partsL = kL.split('|');
+    // We need to find the guest count for this specific group. 
+    // Since we already have the map, we can just store the count there during the first loop.
+    lunchGuestList.push({ name: partsL[0], guests: lunchInstanceMap[kL] });
+  }
+
+  var dinnerGuestList = [];
+  for (var kD in dinnerInstanceMap) {
+    if (kD === 'true') continue;
+    var partsD = kD.split('|');
+    dinnerGuestList.push({ name: partsD[0], guests: dinnerInstanceMap[kD] });
+  }
+
+  return jsonResponse({ 
+    success: true, 
+    lunch: lunch, 
+    dinner: dinner,
+    lunchTotalGuests: lunchTotalGuests,
+    dinnerTotalGuests: dinnerTotalGuests,
+    lunchGuests: lunchGuestList,
+    dinnerGuests: dinnerGuestList,
+    todayDisabled: todayDisabled
+  });
 }
 
 // ── getBookings(shift, date) ──────────────────────────────────
@@ -306,6 +373,29 @@ function clearTable(data) {
   return jsonResponse({ success: false, error: 'Table not found.' });
 }
 
+// ── clearUserBookings(data) ───────────────────────────────────
+function clearUserBookings(data) {
+  var bookDate = data.bookingDate || todayString();
+  var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(BOOKINGS_SHEET);
+  var rows  = sheet.getDataRange().getDisplayValues();
+  var count = 0;
+
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    // Check Status[2], Name[3], Contact[4], Shift[1], Date[6]
+    if (row[2] === 'Occupied' &&
+        String(row[3]).trim().toLowerCase() === String(data.guestName).trim().toLowerCase() &&
+        String(row[4]).trim() === String(data.contact).trim() &&
+        row[1] === data.shift &&
+        String(row[6]) === bookDate) {
+      sheet.getRange(i + 1, 3, 1, 6).setValues([['Available', '', '', '', bookDate, '']]);
+      count++;
+    }
+  }
+  return jsonResponse({ success: true, count: count });
+}
+
 // ── cleanupExpiredSessions() ──────────────────────────────────
 function cleanupExpiredSessions() {
   var ss     = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -379,12 +469,12 @@ function initSheets() {
   for (var offset = 0; offset <= ADVANCE_DAYS; offset++) {
     var dStr = dateString(offset);
     
-    for (var l = 1; l <= 10; l++) {
+    for (var l = 1; l <= 40; l++) {
       if (!existing[dStr + '|L' + l + '|Lunch']) {
         toAdd.push(['L' + l, 'Lunch', 'Available', '', '', '', dStr, '']);
       }
     }
-    for (var d = 1; d <= 15; d++) {
+    for (var d = 1; d <= 40; d++) {
       if (!existing[dStr + '|D' + d + '|Dinner']) {
         toAdd.push(['D' + d, 'Dinner', 'Available', '', '', '', dStr, '']);
       }
@@ -409,7 +499,94 @@ function initSheets() {
     cSheet.appendRow(['Name', 'WhatsApp Number', 'First Booking Date']);
   }
 
-  return jsonResponse({ success: true, message: 'Today\'s tables (' + today + ') have been reset. Future dates unchanged.' });
+  // --- Requests sheet ---
+  var rSheet = ss.getSheetByName(REQUESTS_SHEET);
+  if (!rSheet) {
+    rSheet = ss.insertSheet(REQUESTS_SHEET);
+    rSheet.appendRow(['Name', 'Phone Number', 'Guests', 'Request Time', 'Date', 'Shift']);
+  } else {
+    rSheet.clear();
+    rSheet.appendRow(['Name', 'Phone Number', 'Guests', 'Request Time', 'Date', 'Shift']);
+  }
+
+  // --- Config sheet ---
+  var configSheet = ss.getSheetByName(CONFIG_SHEET);
+  if (!configSheet) {
+    configSheet = ss.insertSheet(CONFIG_SHEET);
+    configSheet.appendRow(['TodayDisabled', false]);
+  }
+
+  return jsonResponse({ success: true, message: 'Today\'s tables (' + today + ') and all requests have been reset. Future dates unchanged.' });
+}
+
+
+// ── submitRequest(data) ───────────────────────────────────────
+function submitRequest(data) {
+  var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(REQUESTS_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(REQUESTS_SHEET);
+    sheet.appendRow(['Name', 'Phone Number', 'Guests', 'Request Time', 'Date', 'Shift']);
+  }
+  
+  // Name, Phone, Guests, Request Time, Date, Shift
+  sheet.appendRow([
+    data.name, 
+    data.contact, 
+    data.numPeople, 
+    new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    data.bookingDate || todayString(),
+    data.shift || ''
+  ]);
+  
+  return jsonResponse({ success: true });
+}
+
+// ── getRequests(date) ─────────────────────────────────────────
+function getRequests(date) {
+  var filterDate = date || todayString();
+  var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(REQUESTS_SHEET);
+  if (!sheet) return jsonResponse({ success: true, requests: [] });
+  
+  var rows = sheet.getDataRange().getDisplayValues();
+  var result = [];
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    // Column index matching: Name[0], Phone[1], Guests[2], ReqTime[3], Date[4], Shift[5]
+    if (String(row[4]) === filterDate) {
+      result.push({
+        name: row[0],
+        phone: row[1],
+        guests: row[2],
+        time: row[3],
+        date: row[4],
+        shift: row[5]
+      });
+    }
+  }
+  return jsonResponse({ success: true, requests: result });
+}
+
+// ── deleteRequest(data) ───────────────────────────────────────
+function deleteRequest(data) {
+  var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(REQUESTS_SHEET);
+  if (!sheet) return jsonResponse({ success: false, error: 'Requests sheet not found' });
+  
+  var rows = sheet.getDataRange().getDisplayValues();
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    // Name[0], Phone[1], Guests[2], Time[3], Date[4], Shift[5]
+    if (String(row[0]).trim() === String(data.name).trim() &&
+        String(row[1]).trim() === String(data.contact).trim() &&
+        String(row[4]) === String(data.date) &&
+        String(row[5]) === String(data.shift)) {
+      sheet.deleteRow(i + 1);
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Request not found' });
 }
 
 // ── setupCleanupTrigger() ─────────────────────────────────────
@@ -426,3 +603,16 @@ function setupCleanupTrigger() {
   // Nightly booking cleanup at midnight IST
   ScriptApp.newTrigger('cleanupPastBookings').timeBased().everyDays(1).atHour(0).create();
 }
+
+// ── setTodayDisabled(data) ────────────────────────────────────
+function setTodayDisabled(data) {
+  var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(CONFIG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG_SHEET);
+    sheet.appendRow(['TodayDisabled', false]);
+  }
+  sheet.getRange(1, 2).setValue(data.disabled === true);
+  return jsonResponse({ success: true, disabled: data.disabled });
+}
+

@@ -15,17 +15,28 @@
     align-items: center;
     justify-content: center;
     padding: 24px 16px;
+    background:
+      linear-gradient(135deg, rgba(13, 13, 15, 0.8) 0%, rgba(13, 13, 15, 0.6) 100%),
+      url('../assets/hero-bg.png') center/cover no-repeat;
 }
 
 .auth-card {
     width: 100%;
     max-width: 380px;
-    background: var(--bg-surface);
+    background: rgba(20, 20, 24, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 36px 24px;
     box-shadow: var(--shadow-card);
     text-align: center;
+    animation: authFadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes authFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .auth-card .lock-icon {
@@ -65,7 +76,11 @@
     position: sticky;
     top: 0;
     z-index: 50;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 60px;
+    padding: 8px 16px;
 }
 
 .admin-nav-brand {
@@ -101,6 +116,83 @@
     gap: 8px;
     align-items: center;
     flex-shrink: 0;
+}
+
+/* ── Toggle Switch ─────────────────────────────────────────── */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+@media (max-width: 480px) {
+    .toggle-label {
+        display: none; /* Hide label on very small screens to save space */
+    }
+    .toggle-container {
+        padding: 6px;
+    }
+}
+
+.toggle-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 20px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #333;
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--red);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--red);
+}
+
+input:checked + .slider:before {
+    transform: translateX(14px);
 }
 
 /* ── Buttons ────────────────────────────────────────────────── */
@@ -145,6 +237,7 @@
 .admin-content {
     flex: 1;
     padding: 20px 16px 40px;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
@@ -201,6 +294,15 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
     margin-bottom: 28px;
+}
+
+@media (max-width: 360px) {
+    .admin-stats-row {
+        grid-template-columns: 1fr;
+    }
+    .admin-stat-card.green-accent {
+        grid-column: span 1 !important;
+    }
 }
 
 .admin-stat-card {
@@ -691,4 +793,98 @@
     .auth-card {
         padding: 48px 36px;
     }
+}
+
+/* ── Collapsible Section ────────────────────────────────────── */
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    opacity: 0;
+}
+
+.collapsible-content.expanded {
+    max-height: 2000px; /* Large enough for 40 rows */
+    opacity: 1;
+    margin-top: 16px;
+}
+
+#toggle-tokens-btn .chevron {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    font-size: 0.6rem;
+    margin-left: 4px;
+}
+
+#toggle-tokens-btn.active .chevron {
+    transform: rotate(180deg);
+}
+
+#toggle-tokens-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+}
+
+/* ── Clear Group Button ────────────────────────────────────── */
+.btn-clear-group {
+    padding: 10px 18px;
+    background: var(--red);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.25);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-clear-group:hover {
+    background: #c0392b;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(231, 76, 60, 0.4);
+}
+
+.btn-clear-group:active {
+    transform: translateY(0);
+}
+
+.btn-clear-group::before {
+    content: '🗑️';
+    font-size: 0.9rem;
+}
+
+/* ── Resolve Button ────────────────────────────────────────── */
+.btn-resolve {
+    padding: 6px 14px;
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btn-resolve:hover {
+    background: var(--green-dim);
+    color: var(--green);
+    border-color: var(--green);
+}
+
+.btn-resolve:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+tr.fade-out {
+    opacity: 0;
+    transform: translateX(10px);
 }

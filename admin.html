@@ -56,6 +56,13 @@
                 <h1>Foothills Retreat</h1>
             </div>
             <div class="admin-nav-actions">
+                <div class="toggle-container" id="admin-booking-toggle-wrap" title="Disable/Enable all bookings for Today" hidden>
+                    <span class="toggle-label">Today's Booking</span>
+                    <label class="switch">
+                        <input type="checkbox" id="check-today-disabled">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
                 <button class="btn-init" id="btn-init-sheets" title="Seed Bookings sheet with blank rows (run once)">
                     ⚙ Initialise Sheets
                 </button>
@@ -85,49 +92,50 @@
                     <div class="stat-val" id="stat-dinner-occ">—</div>
                     <div class="stat-lbl">🌙 Dinner Booked</div>
                 </div>
-                <div class="admin-stat-card red-accent">
-                    <div class="stat-val" id="stat-total-occ">—</div>
-                    <div class="stat-lbl">Total Occupied</div>
-                </div>
-                <div class="admin-stat-card green-accent">
-                    <div class="stat-val" id="stat-free">—</div>
-                    <div class="stat-lbl">Free Tables</div>
+                <div class="admin-stat-card green-accent" style="grid-column: span 2;">
+                    <div class="stat-val" id="stat-total-guests">—</div>
+                    <div class="stat-lbl">No. of Guest</div>
                 </div>
             </div>
 
-            <!-- Shift tabs -->
-            <div class="shift-tabs" role="tablist" aria-label="Select shift to manage">
-                <button class="shift-tab active" data-shift="Lunch" role="tab" aria-selected="true">
-                    ☀️ Lunch Tokens
-                </button>
-                <button class="shift-tab" data-shift="Dinner" role="tab" aria-selected="false">
-                    🌙 Dinner Tokens
-                </button>
-            </div>
-
-            <!-- Admin table cards grid -->
-            <section aria-label="Token management">
-                <div class="admin-tables-grid" id="admin-tables-grid">
-                    <!-- Injected by admin.js -->
+            <!-- Pending Requests section -->
+            <section class="admin-section requests-section" id="requests-section" style="margin-top: 40px;">
+                <div class="section-heading">
+                    <h2 style="color:var(--accent-gold)">Pending Booking Requests</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Customers who requested a spot after the 40-guest limit was reached.</p>
+                </div>
+                <div class="bookings-table-wrap">
+                    <table class="bookings-table" aria-label="Booking requests">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone Number</th>
+                                <th>Guests</th>
+                                <th>Shift</th>
+                                <th>Request Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requests-tbody">
+                            <!-- Injected by admin.js -->
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
-            <!-- All bookings list -->
-            <section class="bookings-section">
+            <!-- All bookings summary list (keeping for reference if needed, or but simplifying) -->
+            <section class="admin-section" style="margin-top: 40px;">
                 <div class="section-heading">
-                    <h2>All Active Bookings</h2>
+                    <h2>Active Bookings Grouped</h2>
                 </div>
                 <div class="bookings-table-wrap">
-                    <table class="bookings-table" aria-label="All active reservations">
+                    <table class="bookings-table" aria-label="Active reservations grouped">
                         <thead>
                             <tr>
                                 <th>Guest Name</th>
                                 <th>Contact</th>
-                                <th>Date</th>
-                                <th>Token</th>
-                                <th>Shift</th>
+                                <th>Token(s)</th>
                                 <th>Time Slot</th>
-                                <th>Guests</th>
+                                <th>Total Guests</th>
                                 <th>Action</th>
                             </tr>
                         </thead>

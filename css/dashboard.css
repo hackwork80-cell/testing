@@ -19,11 +19,15 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    height: 60px;
+    height: auto;
+    min-height: 60px;
     background: rgba(13, 13, 15, 0.92);
     border-bottom: 1px solid var(--border);
     backdrop-filter: blur(12px);
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    padding-bottom: 8px;
 }
 
 .nav-brand {
@@ -1152,3 +1156,327 @@
     max-width: 380px;
     margin: 0;
 }
+
+/* ── Token Booking Card ─────────────────────────────────────── */
+.token-section {
+    padding: 0 16px 60px;
+    display: flex;
+    justify-content: center;
+}
+
+.token-card {
+    width: 100%;
+    max-width: 480px;
+    background: linear-gradient(135deg, rgba(200,168,107,0.06) 0%, rgba(13,13,15,0.0) 100%);
+    border: 1px solid rgba(200, 168, 107, 0.3);
+    border-radius: var(--radius-lg);
+    padding: 28px 24px 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,168,107,0.08);
+    animation: fadeSlideIn 0.4s ease;
+}
+
+.token-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.token-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 8px rgba(200,168,107,0.4));
+}
+
+.token-card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin: 0 0 2px;
+}
+
+.token-card-sub {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.token-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.token-grid-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 480px) {
+    .token-grid-row {
+        grid-template-columns: 1.2fr 1fr;
+    }
+}
+
+.token-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.token-label {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+}
+
+.token-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
+.token-select,
+.token-input {
+    width: 100%;
+    padding: 14px 16px;
+    background-color: var(--bg-card);
+    background-image: linear-gradient(to bottom right, rgba(255,255,255,0.05), transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    transition: all var(--transition);
+    box-sizing: border-box;
+    appearance: none;
+    -webkit-appearance: none;
+    min-height: 54px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.token-select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.token-select {
+    background-image: 
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23c8a86b' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"),
+        linear-gradient(to bottom right, rgba(255,255,255,0.05), transparent);
+    background-repeat: no-repeat, no-repeat;
+    background-position: right 14px center, center;
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+.token-select:focus,
+.token-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background-color: var(--bg-card-hover);
+    box-shadow: 0 0 0 4px rgba(200, 168, 107, 0.2), 0 8px 16px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+}
+
+.token-error {
+    font-size: 0.82rem;
+    color: var(--red);
+    min-height: 18px;
+    margin: 0 0 8px;
+}
+
+.booking-status-msg {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+    background: rgba(231, 76, 60, 0.1);
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+.token-avail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.token-confirm-btn {
+    width: 100%;
+    padding: 18px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    min-height: 56px;
+    letter-spacing: 0.05em;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+    box-shadow: 0 8px 32px rgba(200, 168, 107, 0.25);
+    border: none;
+    text-transform: uppercase;
+    transition: all var(--transition);
+    border-radius: var(--radius-md);
+    color: #0d0d0f;
+    cursor: pointer;
+}
+
+.token-confirm-btn:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.01);
+    box-shadow: 0 12px 40px rgba(200, 168, 107, 0.4);
+}
+
+.token-confirm-btn:active:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.token-confirm-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+@media (min-width: 600px) {
+    .token-section {
+        padding: 0 40px 80px;
+    }
+    .token-card {
+        padding: 36px 32px 30px;
+    }
+}
+
+/* ── Dashboard Footer ───────────────────────────────────────── */
+.dashboard-footer {
+    margin-top: auto;
+    width: 100%;
+    z-index: 40;
+}
+
+.community-bookings {
+    padding: 16px 20px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    background: rgba(20, 20, 22, 0.85);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 100;
+    transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    animation: fadeSlideUp 0.6s ease-out;
+}
+
+.footer-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.community-bookings h4 {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 600;
+}
+
+.community-bookings h4::before,
+.community-bookings h4::after {
+    content: '';
+    height: 1px;
+    background: var(--border);
+    flex: 1;
+}
+
+.guest-list-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+.guest-chip {
+    padding: 8px 18px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all var(--transition);
+}
+
+.guest-chip:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-dim);
+    background: rgba(200, 168, 107, 0.08);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.guest-chip.is-me {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+}
+
+.chip-name {
+    font-weight: 600;
+}
+
+.chip-guest-count {
+    color: var(--accent);
+    font-weight: 500;
+    font-size: 0.8rem;
+}
+
+@keyframes footerFadeSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.seats-badge {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #0d0d0f;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+    padding: 6px 14px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(200, 168, 107, 0.3);
+    letter-spacing: 0.03em;
+    animation: pulse 2s infinite;
+}
+
+.seats-badge.low-seats {
+    background: linear-gradient(135deg, var(--red) 0%, #7d1b1b 100%);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    color: white;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 4px 12px rgba(200, 168, 107, 0.3); }
+    50% { transform: scale(1.05); box-shadow: 0 6px 20px rgba(200, 168, 107, 0.5); }
+    100% { transform: scale(1); box-shadow: 0 4px 12px rgba(200, 168, 107, 0.3); }
+}
+
+.empty-community {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+    width: 100%;
+    font-style: italic;
+    opacity: 0.7;
+    padding: 10px 0;
+}
+
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+

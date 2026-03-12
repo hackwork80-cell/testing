@@ -21,7 +21,15 @@ async function apiGetBothShifts(date) {
   const res = await fetch(url, { redirect: 'follow' });
   const data = await res.json();
   if (!data.success) throw new Error(data.error || 'Failed to fetch bookings');
-  return { lunch: data.lunch, dinner: data.dinner };
+  return { 
+    lunch: data.lunch, 
+    dinner: data.dinner,
+    lunchTotalGuests: data.lunchTotalGuests,
+    dinnerTotalGuests: data.dinnerTotalGuests,
+    lunchGuests: data.lunchGuests,
+    dinnerGuests: data.dinnerGuests,
+    todayDisabled: data.todayDisabled
+  };
 }
 
 async function apiGetBookings(shift, date) {
@@ -88,6 +96,17 @@ async function apiClearTable(tableId, shift, bookingDate) {
   return data;
 }
 
+async function apiClearUserBookings(guestName, contact, shift, bookingDate) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'clearUserBookings', guestName, contact, shift, bookingDate })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Clear all failed');
+  return data;
+}
+
 async function apiInitSheets() {
   const res = await fetch(GAS_URL, {
     method: 'POST', redirect: 'follow',
@@ -98,3 +117,46 @@ async function apiInitSheets() {
   if (!data.success) throw new Error(data.error || 'Init failed');
   return data;
 }
+
+async function apiSubmitRequest(name, contact, numPeople, bookingDate, shift) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'submitRequest', name, contact, numPeople, bookingDate, shift })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Request submission failed');
+  return data;
+}
+
+async function apiGetRequests(date) {
+  const d = date || getTodayIST();
+  const url = `${GAS_URL}?action=getRequests&date=${encodeURIComponent(d)}`;
+  const res = await fetch(url, { redirect: 'follow' });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Failed to fetch requests');
+  return data.requests;
+}
+
+async function apiDeleteRequest(name, contact, date, shift) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'deleteRequest', name, contact, date, shift })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Failed to delete request');
+  return data;
+}
+
+async function apiSetTodayDisabled(disabled) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'setTodayDisabled', disabled })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Failed to update toggle');
+  return data;
+}
+

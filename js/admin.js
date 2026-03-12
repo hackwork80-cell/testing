@@ -79,18 +79,47 @@ document.addEventListener('DOMContentLoaded', () => {
 function initAdmin() {
     renderAdminDateSelector();
 
-    // Shift tabs
-    document.querySelectorAll('.shift-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            currentAdminShift = tab.dataset.shift;
-            document.querySelectorAll('.shift-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            renderAdminShift();
-        });
-    });
-
     loadAllBookings();
+    initBookingToggle();
     adminTimer = setInterval(loadAllBookings, POLL_INTERVAL);
+}
+
+// ── Booking Toggle ────────────────────────────────────────────
+async function initBookingToggle() {
+    const wrap = document.getElementById('admin-booking-toggle-wrap');
+    const check = document.getElementById('check-today-disabled');
+    if (!wrap || !check) return;
+
+    // The state is already returned in apiGetBothShifts, but we'll fetch it explicitly once
+    try {
+        const data = await apiGetBothShifts(getTodayIST());
+        check.checked = data.todayDisabled === true;
+        wrap.hidden = false;
+    } catch (err) {
+        console.error('Failed to init toggle:', err);
+    }
+
+    check.addEventListener('change', async () => {
+        const disabled = check.checked;
+        const msg = disabled 
+            ? 'This will DISABLE all NEW bookings for TODAY. Continue?' 
+            : 'This will RE-ENABLE bookings for TODAY. Continue?';
+        
+        if (!confirm(msg)) {
+            check.checked = !disabled;
+            return;
+        }
+
+        showLoader(true);
+        try {
+            await apiSetTodayDisabled(disabled);
+            showToast(disabled ? 'Today\'s bookings DISABLED' : 'Today\'s bookings ENABLED', 'success');
+        } catch (err) {
+            showToast('Toggle failed: ' + err.message, 'error');
+            check.checked = !disabled;
+        }
+        showLoader(false);
+    });
 }
 
 // ── Date Selector ─────────────────────────────────────────────
@@ -126,7 +155,8 @@ function renderAdminDateSelector() {
         btn.addEventListener('click', () => {
             if (selectedAdminDate === dateStr) return;
             selectedAdminDate = dateStr;
-            isInitialLoad = true; // prevent popups for existing bookings on the new date
+            isInitialLoad = true; 
+            knownOccupied = new Set(); // Reset known keys for the new date
             document.querySelectorAll('#admin-date-selector .date-pill').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
@@ -144,27 +174,35 @@ async function loadAllBookings() {
         const both = await apiGetBothShifts(selectedAdminDate);
         allLunch = both.lunch;
         allDinner = both.dinner;
+        
+        window.lunchTotalGuests = both.lunchTotalGuests || 0;
+        window.dinnerTotalGuests = both.dinnerTotalGuests || 0;
 
-        // Sync lunchDisabled state from backend (now removed as logic is pure client-side time based)
+        const requests = await apiGetRequests(selectedAdminDate);
 
-        // Detect new bookings
+        // Detect new bookings (Grouped by Guest)
         const currentlyOccupied = [...allLunch, ...allDinner].filter(b => b.status === 'Occupied');
-        const newKeys = new Set();
-
+        
+        // Group by: name + contact + shift + date
+        const grouped = {};
         currentlyOccupied.forEach(b => {
-            const key = `${b.tableId}|${b.shift}|${b.bookingDate}`;
-            newKeys.add(key);
+            const gKey = `${b.guestName}|${b.contact}|${b.shift}|${b.bookingDate}`;
+            if (!grouped[gKey]) grouped[gKey] = [];
+            grouped[gKey].push(b);
+        });
 
-            // If it's not the initial load and we haven't seen this booking before -> alert
-            if (!isInitialLoad && !knownOccupied.has(key)) {
-                showBookingNotification(b);
+        const newKeys = new Set();
+        Object.keys(grouped).forEach(gKey => {
+            newKeys.add(gKey);
+            if (!isInitialLoad && !knownOccupied.has(gKey)) {
+                showBookingNotification(grouped[gKey]);
             }
         });
 
         knownOccupied = newKeys;
         isInitialLoad = false;
 
-        renderAdminShift();
+        renderRequests(requests);
         renderStats();
         renderBookingsList();
     } catch (err) {
@@ -173,60 +211,77 @@ async function loadAllBookings() {
     }
 }
 
-// ── Render the current shift's cards ─────────────────────────
-function renderAdminShift() {
-    const bookings = currentAdminShift === 'Lunch' ? allLunch : allDinner;
-    const grid = document.getElementById('admin-tables-grid');
-    grid.innerHTML = '';
 
-    if (!bookings.length) {
-        grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">No data. Click "⚙ Initialise Sheets" in the nav to seed the sheet.</p>';
+
+// ── Render Booking Requests ───────────────────────────────────
+function renderRequests(requests) {
+    const tbody = document.getElementById('requests-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!requests || !requests.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:24px">No pending requests for this date</td></tr>';
         return;
     }
 
-    bookings.forEach(b => {
-        const isOccupied = b.status === 'Occupied';
-        const num = b.tableId.replace(/^[A-Z]/, '');
-        const card = document.createElement('div');
-        card.className = `admin-table-card ${isOccupied ? 'occupied' : 'available'}`;
-        card.innerHTML = `
-      <div class="admin-card-header">
-        <span class="admin-table-id">Token ${escapeHtml(num)}</span>
-        <span class="status-badge ${isOccupied ? 'occupied' : 'available'}">
-          ${isOccupied ? 'Occupied' : 'Free'}
-        </span>
-      </div>
-      <div class="admin-card-guest">
-        ${isOccupied
-                ? `<div class="guest-name">${escapeHtml(b.guestName || '—')}</div>
-             <div class="guest-contact">${escapeHtml(b.contact || '—')}</div>
-             ${b.timeSlot ? `<div class="guest-slot">⏰ ${escapeHtml(b.timeSlot)}</div>` : ''}
-             ${b.numPeople ? `<div class="guest-slot">👥 ${escapeHtml(String(b.numPeople))} guest${b.numPeople > 1 ? 's' : ''}</div>` : ''}`
-                : `<div class="empty-seat">Seat is available</div>`
-            }
-      </div>
-      ${isOccupied ? `<button class="btn-clear" data-id="${b.tableId}" data-shift="${b.shift}">✕ Clear Token</button>` : ''}
-    `;
-        grid.appendChild(card);
+    requests.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-weight:500;">${escapeHtml(r.name || '—')}</td>
+            <td>${escapeHtml(r.phone || '—')}</td>
+            <td>${escapeHtml(String(r.guests || '—'))}</td>
+            <td>${escapeHtml(r.shift || '—')}</td>
+            <td style="color:var(--text-muted); font-size:0.85rem">${escapeHtml(r.time || '—')}</td>
+            <td>
+                <button class="btn-resolve" data-name="${escapeHtml(r.name)}" data-contact="${escapeHtml(r.phone)}" data-date="${escapeHtml(selectedAdminDate)}" data-shift="${escapeHtml(r.shift)}">
+                    Resolve
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
     });
 
-    // Attach clear handlers
-    grid.querySelectorAll('.btn-clear').forEach(btn => {
-        btn.addEventListener('click', () => handleClear(btn.dataset.id, btn.dataset.shift));
+    tbody.querySelectorAll('.btn-resolve').forEach(btn => {
+        btn.addEventListener('click', () => handleResolveRequest(btn));
     });
+}
+
+// ── Handle Resolve Request ────────────────────────────────────
+async function handleResolveRequest(btn) {
+    const { name, contact, date, shift } = btn.dataset;
+    
+    btn.disabled = true;
+    btn.textContent = 'Resolving...';
+
+    try {
+        await apiDeleteRequest(name, contact, date, shift);
+        showToast(`Request for ${name} resolved.`, 'success');
+        
+        // Find and remove the row from the table
+        const tr = btn.closest('tr');
+        tr.classList.add('fade-out');
+        setTimeout(() => tr.remove(), 300);
+        
+        // Refresh requests just in case
+        await loadAllBookings();
+    } catch (err) {
+        showToast('Resolve failed: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Resolve';
+    }
 }
 
 // ── Stats row ─────────────────────────────────────────────────
 function renderStats() {
-    const lunchOccupied = allLunch.filter(b => b.status === 'Occupied').length;
-    const dinnerOccupied = allDinner.filter(b => b.status === 'Occupied').length;
-    const total = allLunch.length + allDinner.length;
-    const totalOccupied = lunchOccupied + dinnerOccupied;
+    const lunchCap = 40;
+    const dinnerCap = 40;
 
-    document.getElementById('stat-lunch-occ').textContent = lunchOccupied + ' / ' + allLunch.length;
-    document.getElementById('stat-dinner-occ').textContent = dinnerOccupied + ' / ' + allDinner.length;
-    document.getElementById('stat-total-occ').textContent = totalOccupied + ' / ' + total;
-    document.getElementById('stat-free').textContent = (total - totalOccupied);
+    const lunchVal = (window.lunchTotalGuests || 0);
+    const dinnerVal = (window.dinnerTotalGuests || 0);
+
+    document.getElementById('stat-lunch-occ').textContent = `${lunchVal} / ${lunchCap}`;
+    document.getElementById('stat-dinner-occ').textContent = `${dinnerVal} / ${dinnerCap}`;
+    document.getElementById('stat-total-guests').textContent = lunchVal + dinnerVal;
 }
 
 // ── Bookings list table ───────────────────────────────────────
@@ -241,49 +296,94 @@ function renderBookingsList() {
         return;
     }
 
+    // Group bookings by guest (name + contact) - one row per unique person
+    // Use an array of [groupKey, bookingsArray] pairs so we can use closures
+    // without storing the key inside HTML attributes (avoids encoding issues).
+    const groupMap = new Map();
     occupied.forEach(b => {
-        const num = b.tableId.replace(/^[A-Z]/, '');
-        const key = `${b.tableId}|${b.shift}|${b.bookingDate}`;
-        const isConfirmed = confirmedWhatsApp.has(key);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-      <td class="name-cell">${escapeHtml(b.guestName || '—')}</td>
-      <td>${escapeHtml(b.contact || '—')}</td>
-      <td class="date-cell">${escapeHtml(b.bookingDate || '—')}</td>
-      <td class="table-cell">${escapeHtml(b.tableId)}</td>
-      <td>${escapeHtml(b.shift)}</td>
-      <td>${escapeHtml(b.timeSlot || '—')}</td>
-      <td>${escapeHtml(b.numPeople ? String(b.numPeople) : '—')}</td>
-      <td style="display:flex; gap:8px;">
-        <button class="btn-wa-confirm" data-id="${b.tableId}" data-shift="${b.shift}" data-date="${b.bookingDate}" ${isConfirmed ? 'disabled style="background-color: #1ebd5a;"' : ''}>${isConfirmed ? 'Confirmed ✅' : 'Confirm 💬'}</button>
-        <button class="btn-clear" style="width:auto;padding:6px 14px;font-size:0.78rem"
-          data-id="${b.tableId}" data-shift="${b.shift}">Clear</button>
-      </td>
-    `;
-        tbody.appendChild(tr);
+        // Normalise key: lowercase name + trimmed contact
+        const key = (b.guestName || '').trim().toLowerCase() + '||' + (b.contact || '').trim();
+        if (!groupMap.has(key)) groupMap.set(key, []);
+        groupMap.get(key).push(b);
     });
 
-    tbody.querySelectorAll('.btn-clear').forEach(btn => {
-        btn.addEventListener('click', () => handleClear(btn.dataset.id, btn.dataset.shift));
-    });
+    const groupsArray = [...groupMap.values()]; // Array of booking-arrays, one per person
 
-    tbody.querySelectorAll('.btn-wa-confirm').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const b = occupied.find(x => x.tableId === btn.dataset.id && x.shift === btn.dataset.shift && x.bookingDate === btn.dataset.date);
-            if (b) {
-                sendWhatsAppConfirmation(b);
-                const key = `${b.tableId}|${b.shift}|${b.bookingDate}`;
-                confirmedWhatsApp.add(key);
-                saveConfirmed();
-                e.target.innerHTML = 'Confirmed ✅';
-                e.target.style.backgroundColor = '#1ebd5a';
-                e.target.disabled = true;
+    groupsArray.forEach((bookings) => {
+        const first = bookings[0];
+        const tableIds  = bookings.map(b => b.tableId).join(', ');
+        
+        // Correct aggregation: unique bookings by date + shift + slot
+        const uniqueInstanceMap = new Map();
+        bookings.forEach(b => {
+            const bKey = `${b.bookingDate}|${b.shift}|${b.timeSlot}`;
+            if (!uniqueInstanceMap.has(bKey)) {
+                uniqueInstanceMap.set(bKey, parseInt(b.numPeople) || 0);
             }
         });
+        const totalPeople = [...uniqueInstanceMap.values()].reduce((a, b) => a + b, 0);
+
+        // Group is confirmed only when every individual booking is confirmed
+        const allConfirmed = bookings.every(b =>
+            confirmedWhatsApp.has(`${b.tableId}|${b.shift}|${b.bookingDate}`)
+        );
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+      <td class="name-cell">${escapeHtml(first.guestName || '—')}</td>
+      <td>${escapeHtml(first.contact || '—')}</td>
+      <td class="table-cell">${escapeHtml(tableIds)}</td>
+      <td>${escapeHtml(first.timeSlot || '—')}</td>
+      <td>${escapeHtml(totalPeople ? String(totalPeople) : '—')}</td>
+      <td style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn-wa-confirm" ${allConfirmed ? 'disabled style="background-color:#1ebd5a;"' : ''}>${allConfirmed ? 'Confirmed ✅' : 'Confirm 💬'}</button>
+        <button class="btn-clear-group">
+          Clear All tokens
+        </button>
+      </td>
+    `;
+
+        // Attach Confirm button listener via closure so we don't rely on data attributes for the group
+        const confirmBtn = tr.querySelector('.btn-wa-confirm');
+        confirmBtn.addEventListener('click', () => {
+            sendWhatsAppConfirmation(bookings);
+            bookings.forEach(b => {
+                confirmedWhatsApp.add(`${b.tableId}|${b.shift}|${b.bookingDate}`);
+            });
+            saveConfirmed();
+            confirmBtn.innerHTML = 'Confirmed ✅';
+            confirmBtn.style.backgroundColor = '#1ebd5a';
+            confirmBtn.disabled = true;
+        });
+
+        // Attach Clear Group button listener
+        const clearGroupBtn = tr.querySelector('.btn-clear-group');
+        clearGroupBtn.addEventListener('click', () => handleClearGroup(bookings));
+
+        tbody.appendChild(tr);
     });
 }
 
-// ── Clear a table ─────────────────────────────────────────────
+// ── Clear a whole booking group ──────────────────────────────
+async function handleClearGroup(bookings) {
+    if (!bookings || !bookings.length) return;
+    const first = bookings[0];
+    const numTokens = bookings.length;
+    
+    if (!confirm(`Clear all ${numTokens} token(s) for ${first.guestName}? This will make them available again.`)) return;
+
+    showLoader(true);
+    try {
+        await apiClearUserBookings(first.guestName, first.contact, first.shift, first.bookingDate);
+        showToast(`Cleared all tokens for ${first.guestName}.`, 'success');
+        await loadAllBookings();
+    } catch (err) {
+        showToast('Clear failed: ' + err.message, 'error');
+    }
+    showLoader(false);
+}
+
+// ── Clear a single table (kept for backward compatibility/notifications) ─────
 async function handleClear(tableId, shift) {
     const num = tableId.replace(/^[A-Z]/, '');
     if (!confirm(`Clear Token ${num} (${shift})? This will make it available again.`)) return;
@@ -318,7 +418,10 @@ function escapeHtml(str) {
 }
 
 // ── New Booking Notification ──────────────────────────────────
-function showBookingNotification(b) {
+function showBookingNotification(bookingsOrSingle) {
+    const bookings = Array.isArray(bookingsOrSingle) ? bookingsOrSingle : [bookingsOrSingle];
+    const b = bookings[0];
+
     // Play sound
     const audio = document.getElementById('notification-sound');
     if (audio) {
@@ -330,17 +433,18 @@ function showBookingNotification(b) {
     const container = document.getElementById('notification-container');
     if (!container) return;
 
-    const num = b.tableId.replace(/^[A-Z]/, '');
+    // List all tokens
+    const tokens = bookings.map(item => item.tableId.replace(/^[A-Z]/, '')).join(', ');
     const toast = document.createElement('div');
     toast.className = 'booking-alert';
 
     toast.innerHTML = `
         <div class="alert-icon">🔔</div>
         <div class="alert-content">
-            <h4>New Booking! Token ${escapeHtml(num)}</h4>
+            <h4>New Booking! Token${bookings.length > 1 ? 's' : ''} ${escapeHtml(tokens)}</h4>
             <p><strong>${escapeHtml(b.guestName || '—')}</strong> (${escapeHtml(b.shift)})</p>
             <p class="alert-meta" style="margin-bottom: 10px !important;">
-                📅 ${escapeHtml(b.bookingDate || '—')} &nbsp; 
+                ${b.bookingDate ? `📅 ${escapeHtml(b.bookingDate)} &nbsp;` : ''} 
                 ${b.timeSlot ? `⏰ ${escapeHtml(b.timeSlot)}` : ''} &nbsp; 
                 ${b.numPeople ? `👥 ${escapeHtml(String(b.numPeople))}` : ''}
             </p>
@@ -352,9 +456,11 @@ function showBookingNotification(b) {
     container.appendChild(toast);
 
     toast.querySelector('.btn-wa-confirm').addEventListener('click', (e) => {
-        sendWhatsAppConfirmation(b);
-        const key = `${b.tableId}|${b.shift}|${b.bookingDate}`;
-        confirmedWhatsApp.add(key);
+        sendWhatsAppConfirmation(bookings);
+        bookings.forEach(item => {
+            const key = `${item.tableId}|${item.shift}|${item.bookingDate}`;
+            confirmedWhatsApp.add(key);
+        });
         saveConfirmed();
         e.target.innerHTML = 'Confirmed ✅';
         e.target.style.backgroundColor = '#1ebd5a';
@@ -466,19 +572,28 @@ function promptAdminPassword(title, message, onSuccess) {
 }
 
 // ── Send WhatsApp Confirmation ────────────────────────────────
-function sendWhatsAppConfirmation(b) {
-    if (!b.contact) {
+// Accepts either a single booking object or an array of booking objects
+// (all belonging to the same guest). When multiple bookings are grouped,
+// all their tokens are listed in a single message.
+function sendWhatsAppConfirmation(bookingsOrSingle) {
+    const bookings = Array.isArray(bookingsOrSingle) ? bookingsOrSingle : [bookingsOrSingle];
+    const first = bookings[0];
+
+    if (!first.contact) {
         showToast('No contact number provided for this booking.', 'error');
         return;
     }
-    const phone = '91' + String(b.contact).replace(/\D/g, ''); // Ensure digits and country code
-    const num = b.tableId.replace(/^[A-Z]/, '');
+
+    const phone = '91' + String(first.contact).replace(/\D/g, '');
+    const tokens = bookings.map(b => b.tableId.replace(/^[A-Z]/, '')).join(', ');
+    const totalPeople = first.numPeople || 0; // Each row stores the total party size for the group
+
     let msg = `✅ *Booking Confirmed – Foothills Retreat*\n\n`;
-    msg += `Hello ${b.guestName || 'Guest'}, your table has been successfully booked!\n\n`;
-    msg += `🎫 *Token:* ${num}\n`;
-    msg += `📅 *Date:* ${b.bookingDate || '—'}\n`;
-    msg += `⏰ *Time:* ${b.timeSlot || b.shift}\n`;
-    msg += `👥 *Guests:* ${b.numPeople || '—'}\n\n`;
+    msg += `Hello ${first.guestName || 'Guest'}, your table${bookings.length > 1 ? 's have' : ' has'} been successfully booked!\n\n`;
+    msg += `🎫 *Token${bookings.length > 1 ? 's' : ''}:* ${tokens}\n`;
+    msg += `📅 *Date:* ${first.bookingDate || '—'}\n`;
+    msg += `⏰ *Time:* ${first.timeSlot || first.shift}\n`;
+    msg += `👥 *Guests:* ${totalPeople || first.numPeople || '—'}\n\n`;
     msg += `We look forward to hosting you! If you need to cancel or modify your booking, please reply to this message.`;
 
     window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
